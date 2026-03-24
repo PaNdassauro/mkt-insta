@@ -1,19 +1,24 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import OverviewKPIs from '@/components/instagram/OverviewKPIs'
 import GrowthChart from '@/components/instagram/GrowthChart'
 import EngagementChart from '@/components/instagram/EngagementChart'
+import ContentScorecard from '@/components/instagram/ContentScorecard'
+import HeatmapPostingTime from '@/components/instagram/HeatmapPostingTime'
 import { useInstagramMetrics } from '@/hooks/useInstagramMetrics'
 import { usePostPerformance } from '@/hooks/usePostPerformance'
+import { useReelPerformance } from '@/hooks/useReelPerformance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatNumber, formatPercent } from '@/lib/analytics'
+import { formatNumber, formatPercent, calcQEI } from '@/lib/analytics'
 import { CONTENT_SCORE_COLORS, CONTENT_SCORE_LABELS } from '@/lib/constants'
-import type { InstagramPost } from '@/types/instagram'
+import type { InstagramPost, AudienceSnapshot } from '@/types/instagram'
 
 function TopPostCard({ post, rank }: { post: InstagramPost; rank: number }) {
   const scoreColors = post.content_score ? CONTENT_SCORE_COLORS[post.content_score] : null
   const scoreLabel = post.content_score ? CONTENT_SCORE_LABELS[post.content_score] : null
+  const qei = calcQEI(post.likes, post.comments, post.saves, post.shares, post.reach)
 
   return (
     <div className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/50">
@@ -30,6 +35,8 @@ function TopPostCard({ post, rank }: { post: InstagramPost; rank: number }) {
           <span>{formatNumber(post.reach)} alcance</span>
           <span>·</span>
           <span>{post.engagement_rate !== null ? formatPercent(post.engagement_rate) : '—'} eng.</span>
+          <span>·</span>
+          <span className="text-indigo-600 font-medium">QEI {formatPercent(qei)}</span>
           {scoreColors && scoreLabel && (
             <Badge className={`${scoreColors.bg} ${scoreColors.text} border-0 text-[10px] px-1.5 py-0`}>
               {scoreLabel}
@@ -49,6 +56,19 @@ export default function OverviewPage() {
     sortBy: 'timestamp',
     order: 'desc',
   })
+  const { reels, isLoading: reelsLoading } = useReelPerformance({
+    limit: 100,
+    sortBy: 'timestamp',
+    order: 'desc',
+  })
+
+  const [audience, setAudience] = useState<AudienceSnapshot | null>(null)
+  useEffect(() => {
+    fetch('/api/instagram/audience')
+      .then((r) => r.json())
+      .then((json) => setAudience(json.data))
+      .catch(() => {})
+  }, [])
 
   const avgEngagementRate =
     posts.length > 0
@@ -84,11 +104,17 @@ export default function OverviewPage() {
         <EngagementChart posts={posts} isLoading={postsLoading} />
       </div>
 
+      {/* Heatmap */}
+      <HeatmapPostingTime audience={audience} posts={posts} isLoading={postsLoading} />
+
+      {/* Content Scorecard */}
+      <ContentScorecard posts={posts} reels={reels} isLoading={postsLoading || reelsLoading} />
+
       {/* Top posts */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Top Posts por Engagement</CardTitle>
-          <p className="text-xs text-muted-foreground">Posts com maior taxa de engajamento recente</p>
+          <p className="text-xs text-muted-foreground">Posts com maior taxa de engajamento (incluindo QEI)</p>
         </CardHeader>
         <CardContent className="pt-0">
           {postsLoading ? (
