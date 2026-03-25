@@ -1,13 +1,15 @@
 import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+function getOpenAI() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+}
 
 /**
  * Gera embedding para um texto usando text-embedding-3-small (1536 dims).
  * Server-only — nunca chamar no client.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: 'text-embedding-3-small',
     input: text.replace(/\n/g, ' ').trim(),
   })
@@ -23,7 +25,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const results: number[][] = []
 
   for (const batch of batches) {
-    const response = await openai.embeddings.create({
+    const response = await getOpenAI().embeddings.create({
       model: 'text-embedding-3-small',
       input: batch.map((t) => t.replace(/\n/g, ' ').trim()),
     })
