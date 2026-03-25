@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatNumber } from '@/lib/analytics'
@@ -54,7 +54,6 @@ export default function StoryMetrics() {
   const totalStories = stories.length
   const avgReach = Math.round(stories.reduce((s, st) => s + st.reach, 0) / totalStories)
   const totalReplies = stories.reduce((s, st) => s + st.replies, 0)
-  const totalShares = stories.reduce((s, st) => s + (st.shares ?? 0), 0)
   const totalFollows = stories.reduce((s, st) => s + (st.follows ?? 0), 0)
 
   const stats = [
