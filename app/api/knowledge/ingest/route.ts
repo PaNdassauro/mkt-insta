@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { validateCronSecret } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parsePDF } from '@/lib/rag/pdf-parser'
 import { chunkText } from '@/lib/rag/chunker'
@@ -8,11 +7,9 @@ import { generateEmbeddings } from '@/lib/rag/embeddings'
 /**
  * POST /api/knowledge/ingest
  * Upload e ingestao de PDFs na Knowledge Base.
- * Requer CRON_SECRET.
+ * Chamado pelo dashboard (upload manual) ou cron.
  */
 export async function POST(request: Request) {
-  const authError = validateCronSecret(request)
-  if (authError) return authError
 
   try {
     const formData = await request.formData()

@@ -63,9 +63,22 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, ...updates } = body
+    const { id } = body
 
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const allowedFields = [
+      'scheduled_for', 'content_type', 'topic', 'caption_draft',
+      'hashtags_plan', 'status', 'media_url', 'carousel_urls',
+    ]
+    const updates: Record<string, unknown> = {}
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) updates[field] = body[field]
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
 
     const supabase = createServerSupabaseClient()
     const { data, error } = await supabase

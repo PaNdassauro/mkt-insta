@@ -137,6 +137,7 @@ Supabase pgvector (document_chunks)
   /report/route.ts
   /refresh-token/route.ts
   /export/route.ts                      <- GET exportacao CSV
+  /publish/route.ts                     <- POST publica no Instagram via Meta API
 
 /app/api/campaigns                      <- (Campaign Studio)
   /generate/route.ts                    <- Orquestra RAG + Claude API com streaming
@@ -144,6 +145,7 @@ Supabase pgvector (document_chunks)
   /[id]/route.ts                        <- GET campanha / PATCH status
   /[id]/posts/route.ts                  <- GET posts da campanha
   /[id]/posts/[postId]/route.ts         <- PATCH edicao de post individual
+  /[id]/chat/route.ts                   <- POST chat estrategico com IA sobre a campanha
   /[id]/schedule/route.ts               <- POST envia posts aprovados para o calendario
 
 /app/api/knowledge                      <- (novo — RAG)
@@ -198,6 +200,7 @@ Supabase pgvector (document_chunks)
     PostEditor.tsx                      <- Edicao inline de post individual (nao-destrutiva)
     CampaignTimeline.tsx                <- Linha do tempo visual da campanha
     ScheduleButton.tsx                  <- Envia posts aprovados para o calendario editorial
+    StrategyChatPanel.tsx               <- Chat com IA para discutir estrategia
   /knowledge                            <- (novo)
     KnowledgeBaseManager.tsx            <- Upload, lista e toggle de documentos indexados
 
@@ -535,10 +538,11 @@ campaign_posts.calendar_entry_id vinculado
 
 ### 9.3 Modelo e configuracao Claude
 
-- **Modelo**: `claude-sonnet-4-20250514` (qualidade maxima para geracao de campanhas)
+- **Modelo**: `claude-sonnet-4-20250514` (melhor relacao custo/velocidade)
 - **max_tokens**: 8000
-- **Output**: JSON puro (sem markdown fences)
-- **Streaming**: obrigatorio — geracao leva 30–60s
+- **Output**: JSON puro com justificativas estrategicas (format_strategy, timing_strategy, expected_results)
+- **Streaming**: obrigatorio — geracao leva 30–90s
+- **Chat estrategico**: `/api/campaigns/[id]/chat` para analista discutir estrategia com a IA
 
 ### 9.4 Fluxo de agendamento
 

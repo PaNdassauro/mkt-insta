@@ -28,15 +28,11 @@ export default function GeneratingScreen() {
     if (!campaignId) return
 
     try {
-      const res = await fetch(`/api/campaigns`)
+      const res = await fetch(`/api/campaigns/${campaignId}`)
       if (!res.ok) return
 
-      const campaigns = await res.json()
-      const campaign = campaigns.find(
-        (c: { id: string }) => c.id === campaignId
-      )
-
-      if (!campaign) return
+      const campaign = await res.json()
+      if (!campaign || campaign.error) return
 
       if (campaign.status === 'REVIEW') {
         setStatus('done')

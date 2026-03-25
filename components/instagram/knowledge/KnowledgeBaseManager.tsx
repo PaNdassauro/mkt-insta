@@ -49,7 +49,7 @@ export default function KnowledgeBaseManager() {
 
       const res = await fetch('/api/knowledge/ingest', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${getCronSecret()}` },
+        headers: {},
         body: formData,
       })
 
@@ -106,7 +106,7 @@ export default function KnowledgeBaseManager() {
     try {
       const res = await fetch('/api/knowledge/scrape', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${getCronSecret()}` },
+        headers: {},
       })
 
       if (!res.ok) {
@@ -292,10 +292,4 @@ function SourceBadge({ type }: { type: string }) {
       {c.label}
     </Badge>
   )
-}
-
-function getCronSecret(): string {
-  // Em desenvolvimento, usa variavel publica para testes.
-  // Em producao, as chamadas de ingest/scrape sao feitas via pg_cron (server-side).
-  return process.env.NEXT_PUBLIC_CRON_SECRET ?? ''
 }

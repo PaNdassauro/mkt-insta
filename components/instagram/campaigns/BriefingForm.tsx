@@ -84,7 +84,6 @@ export default function BriefingForm() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getCronSecret()}`,
         },
         body: JSON.stringify({
           title: title.trim(),
@@ -428,6 +427,3 @@ function getDefaultStartDate(): string {
   return d.toISOString().split('T')[0]
 }
 
-function getCronSecret(): string {
-  return process.env.NEXT_PUBLIC_CRON_SECRET ?? ''
-}
