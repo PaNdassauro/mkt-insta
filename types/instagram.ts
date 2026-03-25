@@ -132,6 +132,10 @@ export interface EditorialEntry {
   hashtags_plan: string[] | null
   status: CalendarStatus
   published_media_id: string | null
+  media_url: string | null
+  carousel_urls: string[] | null
+  published_at: string | null
+  publish_error: string | null
   created_at: string
 }
 

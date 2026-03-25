@@ -408,6 +408,145 @@ export async function getAudienceInsights(
   }
 }
 
+// ==========================================
+// Content Publishing
+// ==========================================
+
+async function postWithRetry(
+  url: string,
+  body: Record<string, string>,
+  maxRetries = 3
+): Promise<unknown> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: new URLSearchParams(body),
+    })
+
+    if (res.ok) {
+      return res.json()
+    }
+
+    if (res.status === 429 || res.status >= 500) {
+      const waitMs = Math.pow(2, attempt) * 1000
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+      lastError = new Error(`Meta API POST error ${res.status}: ${await res.text()}`)
+      continue
+    }
+
+    const text = await res.text()
+    throw new Error(`Meta API POST error ${res.status}: ${text}`)
+  }
+
+  throw lastError ?? new Error('Max retries exceeded')
+}
+
+/**
+ * Cria um container de midia no Instagram.
+ * Step 1 do fluxo de publicacao.
+ */
+export async function createMediaContainer(
+  token: string,
+  userId: string,
+  params: {
+    mediaType: 'IMAGE' | 'CAROUSEL' | 'REELS'
+    imageUrl?: string
+    videoUrl?: string
+    caption?: string
+    carouselItemIds?: string[]
+    isCarouselItem?: boolean
+  }
+): Promise<string> {
+  const body: Record<string, string> = { access_token: token }
+
+  if (params.isCarouselItem) {
+    body.image_url = params.imageUrl!
+    body.is_carousel_item = 'true'
+  } else if (params.mediaType === 'CAROUSEL') {
+    body.media_type = 'CAROUSEL'
+    body.children = params.carouselItemIds!.join(',')
+    if (params.caption) body.caption = params.caption
+  } else if (params.mediaType === 'REELS') {
+    body.media_type = 'REELS'
+    body.video_url = params.videoUrl!
+    if (params.caption) body.caption = params.caption
+  } else {
+    body.image_url = params.imageUrl!
+    if (params.caption) body.caption = params.caption
+  }
+
+  const url = `${META_API_BASE_URL}/${userId}/media`
+  const response = (await postWithRetry(url, body)) as { id: string }
+  return response.id
+}
+
+/**
+ * Verifica status do container (necessario para videos/reels).
+ * Step 2 do fluxo de publicacao.
+ */
+export async function pollContainerStatus(
+  token: string,
+  containerId: string,
+  maxAttempts = 30,
+  intervalMs = 10000
+): Promise<'FINISHED' | 'ERROR'> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const url = buildUrl(`/${containerId}`, {
+      fields: 'status_code',
+      access_token: token,
+    })
+    const data = (await fetchWithRetry(url)) as { status_code: string }
+
+    if (data.status_code === 'FINISHED') return 'FINISHED'
+    if (data.status_code === 'ERROR' || data.status_code === 'EXPIRED') return 'ERROR'
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+
+  return 'ERROR'
+}
+
+/**
+ * Publica o container no Instagram.
+ * Step 3 do fluxo de publicacao.
+ */
+export async function publishMedia(
+  token: string,
+  userId: string,
+  containerId: string
+): Promise<string> {
+  const url = `${META_API_BASE_URL}/${userId}/media_publish`
+  const response = (await postWithRetry(url, {
+    creation_id: containerId,
+    access_token: token,
+  })) as { id: string }
+  return response.id
+}
+
+/**
+ * Verifica quota de publicacao restante.
+ */
+export async function getPublishingQuota(
+  token: string,
+  userId: string
+): Promise<{ used: number; total: number }> {
+  const url = buildUrl(`/${userId}/content_publishing_limit`, {
+    fields: 'quota_usage,config',
+    access_token: token,
+  })
+  const response = (await fetchWithRetry(url)) as {
+    data: Array<{ quota_usage: number; config: { quota_total: number } }>
+  }
+  const item = response.data[0]
+  return { used: item.quota_usage, total: item.config.quota_total }
+}
+
+// ==========================================
+// Token Refresh
+// ==========================================
+
 export async function refreshLongLivedToken(
   currentToken: string
 ): Promise<{ token: string; expiresAt: Date }> {

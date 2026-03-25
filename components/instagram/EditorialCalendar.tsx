@@ -38,6 +38,7 @@ export default function EditorialCalendar() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [showForm, setShowForm] = useState(false)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     scheduled_for: '',
     content_type: 'REEL' as ContentType,
@@ -87,6 +88,50 @@ export default function EditorialCalendar() {
       await fetch(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
       await fetchEntries()
     } catch { /* silenciar */ }
+  }
+
+  const setMediaUrl = async (id: string) => {
+    const url = prompt('Cole a URL publica da imagem ou video:')
+    if (!url) return
+    try {
+      await fetch('/api/instagram/calendar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, media_url: url }),
+      })
+      await fetchEntries()
+    } catch { /* silenciar */ }
+  }
+
+  const publishEntry = async (entry: EditorialEntry) => {
+    if (!entry.media_url && !entry.carousel_urls?.length) {
+      const url = prompt('Cole a URL publica da imagem ou video para publicar:')
+      if (!url) return
+      await fetch('/api/instagram/calendar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: entry.id, media_url: url }),
+      })
+    }
+    if (!confirm('Publicar este post no Instagram da @welcomeweddings?')) return
+
+    setPublishingId(entry.id)
+    try {
+      const res = await fetch('/api/instagram/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendarEntryId: entry.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        alert(`Erro ao publicar: ${json.error}`)
+      }
+      await fetchEntries()
+    } catch {
+      alert('Erro de conexao ao publicar')
+    } finally {
+      setPublishingId(null)
+    }
   }
 
   // Navegar meses
@@ -221,6 +266,15 @@ export default function EditorialCalendar() {
                                   {statusConfig.label}
                                 </Badge>
                                 {/* Actions on hover */}
+                                {entry.publish_error && (
+                                  <div className="text-[8px] text-red-500 mt-0.5 truncate" title={entry.publish_error}>
+                                    Erro: {entry.publish_error.substring(0, 30)}...
+                                  </div>
+                                )}
+                                {entry.media_url && (
+                                  <div className="text-[8px] text-emerald-600 mt-0.5">📎 Midia</div>
+                                )}
+                                {/* Actions on hover */}
                                 <div className="absolute right-0.5 top-0.5 hidden gap-0.5 group-hover:flex">
                                   {entry.status === 'DRAFT' && (
                                     <button
@@ -231,10 +285,18 @@ export default function EditorialCalendar() {
                                   )}
                                   {entry.status === 'APPROVED' && (
                                     <button
-                                      onClick={() => updateStatus(entry.id, 'PUBLISHED')}
-                                      className="rounded bg-emerald-500 px-1 py-0.5 text-[8px] text-white"
-                                      title="Marcar publicado"
-                                    >✓</button>
+                                      onClick={() => setMediaUrl(entry.id)}
+                                      className="rounded bg-gray-500 px-1 py-0.5 text-[8px] text-white"
+                                      title="Adicionar URL de midia"
+                                    >📎</button>
+                                  )}
+                                  {entry.status === 'APPROVED' && (
+                                    <button
+                                      onClick={() => publishEntry(entry)}
+                                      disabled={publishingId === entry.id}
+                                      className="rounded bg-emerald-500 px-1 py-0.5 text-[8px] text-white disabled:opacity-50"
+                                      title="Publicar no Instagram"
+                                    >{publishingId === entry.id ? '...' : '▶'}</button>
                                   )}
                                   <button
                                     onClick={() => deleteEntry(entry.id)}
