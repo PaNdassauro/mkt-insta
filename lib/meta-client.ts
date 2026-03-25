@@ -289,7 +289,7 @@ export async function getActiveStories(
   userId: string
 ): Promise<StoryItem[]> {
   const url = buildUrl(`/${userId}/stories`, {
-    fields: 'id,media_type,media_url,permalink,timestamp',
+    fields: 'id,media_type,media_url,thumbnail_url,permalink,timestamp',
     access_token: token,
   })
 

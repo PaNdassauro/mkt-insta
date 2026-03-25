@@ -32,9 +32,13 @@ export async function POST(request: Request) {
         new Date(story.timestamp).getTime() + 24 * 60 * 60 * 1000
       ).toISOString()
 
-      // Persistir media no Supabase Storage (se ainda nao foi salvo)
+      // Persistir thumbnail no Supabase Storage (se ainda nao foi salvo)
+      // Para videos, usar thumbnail_url (imagem); para imagens, usar media_url
       let storedMediaUrl: string | null = null
-      if (story.media_url) {
+      const isVideo = story.media_type === 'VIDEO'
+      const imageUrl = isVideo ? story.thumbnail_url : story.media_url
+
+      if (imageUrl) {
         // Verificar se ja existe no storage
         const { data: existing } = await supabase
           .from('instagram_stories')
@@ -45,11 +49,8 @@ export async function POST(request: Request) {
         if (existing?.stored_media_url) {
           storedMediaUrl = existing.stored_media_url
         } else {
-          storedMediaUrl = await persistStoryMedia(
-            story.media_url,
-            story.id,
-            story.media_type ?? 'IMAGE'
-          )
+          // Sempre salvar como imagem (jpg) para thumbnails
+          storedMediaUrl = await persistStoryMedia(imageUrl, story.id, 'IMAGE')
           if (storedMediaUrl) storedCount++
         }
       }
