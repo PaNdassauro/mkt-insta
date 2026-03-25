@@ -73,6 +73,7 @@ export interface InstagramStory {
   media_id: string
   media_type: string | null
   media_url: string | null
+  stored_media_url: string | null
   permalink: string | null
   timestamp: string | null
   expires_at: string | null
