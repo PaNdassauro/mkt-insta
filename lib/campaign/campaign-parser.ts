@@ -3,6 +3,9 @@ import type { PostFormat } from '@/types/instagram'
 export interface CampaignOutput {
   campaign_summary: string
   strategic_rationale: string
+  format_strategy: string
+  timing_strategy: string
+  expected_results: string
   posts: CampaignPostOutput[]
 }
 
@@ -73,6 +76,21 @@ export function validateCampaignSchema(data: unknown): CampaignOutput {
       ? obj.strategic_rationale
       : ''
 
+  const format_strategy =
+    typeof obj.format_strategy === 'string'
+      ? obj.format_strategy
+      : ''
+
+  const timing_strategy =
+    typeof obj.timing_strategy === 'string'
+      ? obj.timing_strategy
+      : ''
+
+  const expected_results =
+    typeof obj.expected_results === 'string'
+      ? obj.expected_results
+      : ''
+
   if (!Array.isArray(obj.posts) || obj.posts.length === 0) {
     throw new Error('Campaign must have at least one post')
   }
@@ -139,5 +157,5 @@ export function validateCampaignSchema(data: unknown): CampaignOutput {
     }
   )
 
-  return { campaign_summary, strategic_rationale, posts }
+  return { campaign_summary, strategic_rationale, format_strategy, timing_strategy, expected_results, posts }
 }

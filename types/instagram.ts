@@ -268,6 +268,9 @@ export interface Campaign {
   generated_at: string | null
   campaign_summary: string | null
   strategic_rationale: string | null
+  format_strategy: string | null
+  timing_strategy: string | null
+  expected_results: string | null
   created_at: string
   updated_at: string
 }

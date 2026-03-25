@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import PostEditor from '@/components/instagram/campaigns/PostEditor'
 import CampaignTimeline from '@/components/instagram/campaigns/CampaignTimeline'
 import ScheduleButton from '@/components/instagram/campaigns/ScheduleButton'
+import StrategyChatPanel from '@/components/instagram/campaigns/StrategyChatPanel'
 import type { Campaign, CampaignPost } from '@/types/instagram'
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -135,21 +136,65 @@ export default function CampaignEditorPage() {
         )}
       </div>
 
-      {/* Summary */}
+      {/* Strategy Section */}
       {campaign.campaign_summary && (
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Resumo Estrategico</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{campaign.campaign_summary}</p>
-            {campaign.strategic_rationale && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {campaign.strategic_rationale}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Resumo Estrategico</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm">{campaign.campaign_summary}</p>
+              {campaign.strategic_rationale && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    Racional
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {campaign.strategic_rationale}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Justificativas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {campaign.format_strategy && (
+                <div>
+                  <p className="text-xs font-medium text-purple-600 mb-0.5">
+                    Formatos
+                  </p>
+                  <p className="text-xs">{campaign.format_strategy}</p>
+                </div>
+              )}
+              {campaign.timing_strategy && (
+                <div>
+                  <p className="text-xs font-medium text-blue-600 mb-0.5">
+                    Datas e Horarios
+                  </p>
+                  <p className="text-xs">{campaign.timing_strategy}</p>
+                </div>
+              )}
+              {campaign.expected_results && (
+                <div>
+                  <p className="text-xs font-medium text-green-600 mb-0.5">
+                    Resultados Esperados
+                  </p>
+                  <p className="text-xs">{campaign.expected_results}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Strategy Chat */}
+      {(campaign.status === 'REVIEW' || campaign.status === 'APPROVED') && (
+        <StrategyChatPanel campaignId={campaignId} />
       )}
 
       {/* Stats */}
