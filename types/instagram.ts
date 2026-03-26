@@ -327,3 +327,56 @@ export interface CampaignPost {
   created_at: string
   updated_at: string
 }
+
+// ==========================================
+// Messaging
+// ==========================================
+
+export interface Conversation {
+  id: string
+  ig_user_id: string
+  username: string | null
+  profile_pic_url: string | null
+  last_message_at: string | null
+  unread_count: number
+  is_archived: boolean
+  created_at: string
+}
+
+export interface Message {
+  id: string
+  conversation_id: string
+  ig_message_id: string | null
+  direction: 'INCOMING' | 'OUTGOING'
+  content: string | null
+  media_url: string | null
+  media_type: string | null
+  is_auto_reply: boolean
+  replied_to: string | null
+  timestamp: string
+  created_at: string
+}
+
+export interface AutoReplyRule {
+  id: string
+  name: string
+  keywords: string[]
+  match_type: 'contains' | 'exact' | 'starts_with'
+  reply_text: string
+  is_active: boolean
+  priority: number
+  usage_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ReplyTemplate {
+  id: string
+  name: string
+  category: string | null
+  content: string
+  shortcut: string | null
+  usage_count: number
+  is_active: boolean
+  created_at: string
+}

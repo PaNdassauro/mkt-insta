@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Concorrentes', href: '/dashboard/instagram/competitors', icon: '🏆' },
   { label: 'Calendario', href: '/dashboard/instagram/calendar', icon: '📅' },
   { label: 'Campanhas', href: '/dashboard/instagram/campaigns', icon: '🚀' },
+  { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: '💬' },
   { label: 'Knowledge Base', href: '/dashboard/instagram/knowledge', icon: '🧠' },
   { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
 ]
