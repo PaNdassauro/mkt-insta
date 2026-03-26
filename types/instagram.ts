@@ -44,6 +44,7 @@ export interface InstagramPost {
   engagement_rate: number | null
   content_score: ContentScore | null
   hashtags: string[] | null
+  campaign_id: string | null
   synced_at: string
 }
 
@@ -65,6 +66,7 @@ export interface InstagramReel {
   duration_sec: number | null
   content_score: ContentScore | null
   hashtags: string[] | null
+  campaign_id: string | null
   synced_at: string
 }
 
@@ -277,8 +279,28 @@ export interface Campaign {
   format_strategy: string | null
   timing_strategy: string | null
   expected_results: string | null
+  tags: string[]
   created_at: string
   updated_at: string
+}
+
+export interface CampaignReport {
+  campaign: Campaign
+  posts: CampaignPost[]
+  linkedMedia: {
+    posts: Array<{ media_id: string; likes: number; comments: number; saves: number; shares: number; reach: number; engagement_rate: number; content_score: string | null }>
+    reels: Array<{ media_id: string; views: number; likes: number; comments: number; saves: number; shares: number; reach: number; content_score: string | null }>
+  }
+  totals: {
+    reach: number
+    likes: number
+    comments: number
+    saves: number
+    shares: number
+    engagement_rate_avg: number
+    posts_count: number
+    reels_count: number
+  }
 }
 
 export interface CampaignPost {

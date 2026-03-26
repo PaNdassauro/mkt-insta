@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import PostEditor from '@/components/instagram/campaigns/PostEditor'
@@ -134,7 +135,17 @@ export default function CampaignEditorPage() {
             <span>Campanha agendada no calendario editorial</span>
           </div>
         )}
+
+        <Link
+          href={`/dashboard/instagram/campaigns/${campaignId}/report`}
+          className="text-sm text-primary hover:underline"
+        >
+          📊 Ver relatorio
+        </Link>
       </div>
+
+      {/* Tags */}
+      <TagsEditor campaignId={campaignId} tags={campaign.tags ?? []} onUpdate={loadData} />
 
       {/* Strategy Section */}
       {campaign.campaign_summary && (
@@ -290,5 +301,69 @@ function MiniCard({
         <p className={`text-lg font-semibold ${valueClass ?? ''}`}>{value}</p>
       </CardContent>
     </Card>
+  )
+}
+
+function TagsEditor({
+  campaignId,
+  tags,
+  onUpdate,
+}: {
+  campaignId: string
+  tags: string[]
+  onUpdate: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [input, setInput] = useState(tags.join(', '))
+
+  async function saveTags() {
+    const newTags = input
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+
+    await fetch(`/api/campaigns/${campaignId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: newTags }),
+    })
+    setEditing(false)
+    onUpdate()
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="casamento, welconnect, caribe"
+          className="flex-1 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+          onKeyDown={(e) => e.key === 'Enter' && saveTags()}
+        />
+        <Button size="sm" onClick={saveTags}>
+          Salvar
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+          Cancelar
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {tags.map((tag) => (
+        <Badge key={tag} variant="secondary" className="text-xs">
+          {tag}
+        </Badge>
+      ))}
+      <button
+        onClick={() => setEditing(true)}
+        className="text-xs text-muted-foreground hover:text-foreground"
+      >
+        {tags.length > 0 ? 'Editar tags' : '+ Adicionar tags'}
+      </button>
+    </div>
   )
 }

@@ -46,7 +46,7 @@ export async function PATCH(
     const body = await request.json()
     const supabase = createServerSupabaseClient()
 
-    const allowedFields = ['status', 'title', 'theme', 'objective']
+    const allowedFields = ['status', 'title', 'theme', 'objective', 'tags']
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
     for (const field of allowedFields) {
