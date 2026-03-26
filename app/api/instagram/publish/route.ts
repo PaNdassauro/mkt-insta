@@ -110,12 +110,17 @@ export async function POST(request: Request) {
 
         publishedMediaId = await publishMedia(token, userId, containerId)
       } else {
-        // Image: criar container + publicar
+        // Image: criar container + poll + publicar
         const containerId = await createMediaContainer(token, userId, {
           mediaType: 'IMAGE',
           imageUrl: entry.media_url,
           caption,
         })
+
+        const imgStatus = await pollContainerStatus(token, containerId, 10, 3000)
+        if (imgStatus === 'ERROR') {
+          throw new Error('Image processing failed on Meta servers')
+        }
 
         publishedMediaId = await publishMedia(token, userId, containerId)
       }
