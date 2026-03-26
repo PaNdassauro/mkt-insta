@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +32,7 @@ const STATUS_CONFIG: Record<CalendarStatus, { label: string; color: string }> = 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
 
 export default function EditorialCalendar() {
+  const router = useRouter()
   const [entries, setEntries] = useState<EditorialEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -265,7 +267,8 @@ export default function EditorialCalendar() {
                             return (
                               <div
                                 key={entry.id}
-                                className="group relative rounded-md bg-muted/50 px-1.5 py-1 hover:bg-muted transition-colors cursor-default"
+                                onClick={() => router.push(`/dashboard/instagram/calendar/${entry.id}`)}
+                                className="group relative rounded-md bg-muted/50 px-1.5 py-1 hover:bg-muted transition-colors cursor-pointer"
                               >
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px]">{typeConfig?.icon}</span>
