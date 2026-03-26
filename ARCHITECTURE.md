@@ -99,7 +99,8 @@ Supabase pgvector (document_chunks)
       /audience/page.tsx                <- Dados demograficos (idade, genero, cidade)
       /hashtags/page.tsx                <- Hashtag Intelligence com trend
       /competitors/page.tsx             <- Benchmarking de concorrentes (CRUD)
-      /calendar/page.tsx                <- Calendario editorial (CRUD mensal) — recebe posts agendados do Campaign Studio
+      /calendar/page.tsx                <- Calendario editorial (CRUD mensal + Kanban view)
+      /calendar/[id]/page.tsx           <- Editor completo de entrada com preview Instagram
       /report/page.tsx                  <- Relatorio PDF mensal
 ```
 
@@ -116,6 +117,8 @@ Supabase pgvector (document_chunks)
             page.tsx                    <- Streaming de geracao (step 2)
         /[id]
           page.tsx                      <- Campaign Editor — revisao e aprovacao (step 3)
+          /report
+            page.tsx                    <- Relatorio da campanha (parcial ou final)
       /knowledge
         page.tsx                        <- Gestao da Knowledge Base (upload de PDFs, status)
 ```
@@ -134,19 +137,24 @@ Supabase pgvector (document_chunks)
   /hashtags/route.ts
   /competitors/route.ts
   /calendar/route.ts                    <- GET/POST/PUT/DELETE (recebe posts do Campaign Studio)
+  /calendar/[id]/route.ts              <- GET entrada individual do calendario
   /report/route.ts
   /refresh-token/route.ts
   /export/route.ts                      <- GET exportacao CSV
   /publish/route.ts                     <- POST publica no Instagram via Meta API
+  /auto-publish/route.ts               <- POST cron que publica automaticamente posts agendados
 
 /app/api/campaigns                      <- (Campaign Studio)
   /generate/route.ts                    <- Orquestra RAG + Claude API com streaming
   /route.ts                             <- GET lista
-  /[id]/route.ts                        <- GET campanha / PATCH status
+  /compare/route.ts                    <- GET compara campanhas por tags
+  /[id]/route.ts                        <- GET campanha / PATCH status e tags
   /[id]/posts/route.ts                  <- GET posts da campanha
   /[id]/posts/[postId]/route.ts         <- PATCH edicao de post individual
   /[id]/chat/route.ts                   <- POST chat estrategico com IA sobre a campanha
   /[id]/schedule/route.ts               <- POST envia posts aprovados para o calendario
+  /[id]/report/route.ts                <- GET relatorio da campanha (parcial ou final)
+  /[id]/media/route.ts                 <- POST/DELETE vincular midias reais a campanha
 
 /app/api/knowledge                      <- (novo — RAG)
   /ingest/route.ts                      <- Upload e ingestao de PDFs
@@ -191,7 +199,8 @@ Supabase pgvector (document_chunks)
   HashtagTable.tsx
   AudienceDemographics.tsx
   CompetitorTable.tsx
-  EditorialCalendar.tsx                 <- Recebe posts agendados do Campaign Studio
+  EditorialCalendar.tsx                 <- Calendario mensal com publicacao direta
+  CalendarKanban.tsx                    <- Visao Kanban do calendario (drag-and-drop)
   ExportButton.tsx
   StoryMetrics.tsx                       <- Metricas de stories
   /campaigns
@@ -667,10 +676,41 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 - [x] Vinculo campaign_post.calendar_entry_id
 - [x] Atualizacao de status da campanha para SCHEDULED
 
-### Proximos passos (backlog geral)
-- [ ] Publicacao direta no Instagram (requer `instagram_content_publish` — ver secao 14)
+### Publicacao e Calendario Avancado (CONCLUIDA)
+- [x] Publicacao direta no Instagram (IMAGE, CAROUSEL, REEL)
+- [x] Auto-publish via cron (publica no horario agendado)
+- [x] Editor completo de entrada com preview Instagram ao vivo
+- [x] Suporte a localizacao, user tags, alt text, collaborators, cover
+- [x] Kanban view para calendario (drag-and-drop entre status)
+- [x] Relatorios de campanha (parcial e final)
+- [x] Tags de campanha para comparacao
+- [x] Vinculacao de midias reais a campanhas
+- [x] Chat estrategico com IA por campanha
+
+### Proximos passos (backlog — organizado por sprint)
+
+**Sprint 2: DMs Automatizados + Webhooks**
+- [ ] Webhook endpoint para Instagram (comments, messages, mentions)
+- [ ] Tabela instagram_messages + inbox de DMs
+- [ ] Auto-reply por keyword (preco, disponibilidade, pacotes)
+- [ ] Templates de resposta rapida
+
+**Sprint 3: Comentarios + Mencoes**
+- [ ] API de comentarios (ler, responder, ocultar, deletar)
+- [ ] Pagina de gestao de comentarios no dashboard
+- [ ] Rastreamento de mencoes e tags da marca
+- [ ] Pagina de UGC (conteudo gerado por clientes)
+
+**Sprint 4: Hashtags + Inteligencia Competitiva**
+- [ ] Monitoramento de hashtags via API (30 hashtags/semana)
+- [ ] Dashboard de hashtags com trends
+- [ ] Dynamic import do Recharts para reduzir bundle
+
+**Sprint 5: Auth, Dark Mode, Polish**
 - [ ] Autenticacao de usuario (Supabase Auth)
+- [ ] Role-based access (admin vs viewer)
 - [ ] Dark mode toggle
+- [ ] Accessibility pass (aria labels, keyboard nav)
 - [ ] Testes unitarios para analytics.ts e meta-client.ts
 - [ ] Integracao com Canva API para geracao de assets (futuro)
 
@@ -681,7 +721,7 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 1. **shadcn/ui v3 (Radix)**: Compativel com Tailwind CSS v3. A versao 4 (base-ui) NAO e compativel com Next.js 14.
 2. **Meta API v21/v22**: `metric_type=total_value` obrigatorio para insights de conta. `follower_demographics` com `breakdown` substitui `audience_gender_age`. `impressions` removido. Stories usam `navigation`.
 3. **Batch content scores**: 4 queries por tier em vez de N queries individuais.
-4. **Auth centralizada**: `lib/auth.ts` para `validateCronSecret()` e `escapeHtml()`.
+4. **Auth centralizada**: `lib/auth.ts` para `validateCronSecret()` (cron), `validateDashboardRequest()` (dashboard) e `escapeHtml()`.
 5. **Error boundaries**: `app/dashboard/instagram/error.tsx`.
 6. **QEI no frontend**: Runtime para pesos ajustaveis.
 7. **Stories persistidos**: Supabase Storage bucket `story-media` (thumbs/ e videos/).
@@ -694,48 +734,57 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 
 ---
 
-## 14. Publicacao Direta no Instagram (futuro)
+## 14. Publicacao Direta no Instagram (IMPLEMENTADA)
 
 ### 14.1 Estado atual
 
-Hoje o DashIG **nao publica** no Instagram. O fluxo e: campanha aprovada -> calendario editorial -> publicacao manual pelo time.
+O DashIG publica diretamente no Instagram via Meta Graph API. Suporta IMAGE, CAROUSEL e REEL com localizacao, user tags, alt text, collaborators e cover de Reel.
 
-### 14.2 O que seria necessario
+### 14.2 Permissoes (todas granted)
 
-| Requisito | Status |
+| Permissao | Status |
 |---|---|
-| Permissao `instagram_content_publish` | NAO temos — requer App Review da Meta |
-| Conta Business (@welcomeweddings) | Ja temos |
-| Facebook Page conectada | Ja temos |
-| Long-Lived Token com scope de publish | Precisaria re-autenticar |
-| Media hospedada com URL publica | Supabase Storage ja serve URLs publicas |
+| `instagram_content_publish` | Granted |
+| `instagram_manage_comments` | Granted |
+| `instagram_manage_messages` | Granted |
+| `instagram_manage_events` | Granted |
+| `instagram_manage_contents` | Granted |
+| Quota | 100 posts/24h |
 
-### 14.3 Fluxo de publicacao via API
+### 14.3 Fluxo de publicacao
 
 ```
-1. POST /{user_id}/media — Cria container (image_url ou video_url + caption)
-2. GET /{container_id}?fields=status_code — Poll ate FINISHED (videos)
+1. POST /{user_id}/media — Cria container (image_url/video_url + caption + params)
+2. GET /{container_id}?fields=status_code — Poll ate FINISHED
 3. POST /{user_id}/media_publish — Publica o container
 ```
 
-### 14.4 Conteudos suportados
+### 14.4 Parametros suportados
 
-| Tipo | Suportado | Limitacoes |
+| Parametro | IMAGE | CAROUSEL | REEL |
+|---|---|---|---|
+| caption | Sim | Sim | Sim |
+| location_id | Sim | Sim | Sim |
+| user_tags | Sim | Sim (por item) | Nao |
+| alt_text | Sim | Sim (por item) | Nao |
+| collaborators | Sim | Sim | Sim |
+| cover_url | Nao | Nao | Sim |
+
+### 14.5 Auto-publish
+
+Cron `dashig-auto-publish` roda a cada 30 minutos. Publica entradas com:
+- `auto_publish = true`
+- `status = 'APPROVED'`
+- `scheduled_for <= now`
+- `media_url` preenchida
+
+### 14.6 Cron jobs ativos
+
+| Job | Schedule | Endpoint |
 |---|---|---|
-| Imagem | Sim | Apenas JPEG |
-| Carrossel | Sim | Ate 10 itens |
-| Reel | Sim | Requer video_url ou upload resumivel |
-| Story | Sim | Sem texto, stickers, tags — muito limitado |
-
-### 14.5 Limites
-
-- **50 posts por 24h** (janela rolante)
-- **200 chamadas API por hora** por conta
-- Containers expiram em 24h se nao publicados
-
-### 14.6 Proximos passos para habilitar
-
-1. Solicitar App Review da Meta para `instagram_content_publish`
-2. Re-autenticar @welcomeweddings com novo scope
-3. Implementar fluxo de publicacao no DashIG
-4. Adicionar status PUBLISHED ao fluxo de campanhas
+| `dashig-sync-daily` | `0 11 * * *` (8h BRT) | POST /api/instagram/sync |
+| `dashig-sync-stories` | `0 14 * * *` (11h BRT) | POST /api/instagram/sync-stories |
+| `dashig-sync-audience` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-audience |
+| `dashig-report-monthly` | `0 8 1 * *` (dia 1, 5h BRT) | POST /api/instagram/report |
+| `dashig-knowledge-scrape` | `0 9 * * 1` (seg 6h BRT) | POST /api/knowledge/scrape |
+| `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | POST /api/instagram/auto-publish |
