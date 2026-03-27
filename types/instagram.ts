@@ -380,3 +380,38 @@ export interface ReplyTemplate {
   is_active: boolean
   created_at: string
 }
+
+// ==========================================
+// Comments & Mentions
+// ==========================================
+
+export interface InstagramComment {
+  id: string
+  comment_id: string
+  media_id: string
+  parent_id: string | null
+  username: string
+  text: string
+  timestamp: string | null
+  like_count: number
+  is_hidden: boolean
+  is_replied: boolean
+  reply_text: string | null
+  replied_at: string | null
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'QUESTION' | null
+  created_at: string
+}
+
+export interface InstagramMention {
+  id: string
+  media_id: string
+  username: string
+  caption: string | null
+  permalink: string | null
+  media_type: string | null
+  media_url: string | null
+  timestamp: string | null
+  is_saved: boolean
+  notes: string | null
+  created_at: string
+}
