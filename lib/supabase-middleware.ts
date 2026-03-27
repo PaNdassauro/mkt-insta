@@ -27,7 +27,17 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Rotas publicas (nao precisam de auth)
-  const publicPaths = ['/login', '/api/webhooks', '/api/instagram/sync', '/api/instagram/sync-stories', '/api/instagram/sync-audience', '/api/instagram/auto-publish', '/api/instagram/report', '/api/knowledge/scrape']
+  const publicPaths = [
+    '/login',
+    '/api/webhooks',
+    '/api/instagram/sync',
+    '/api/instagram/sync-stories',
+    '/api/instagram/sync-audience',
+    '/api/instagram/auto-publish',
+    '/api/instagram/report',
+    '/api/instagram/refresh-token',
+    '/api/knowledge/scrape',
+  ]
   const isPublic = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
   const isApi = request.nextUrl.pathname.startsWith('/api/')
   const isRoot = request.nextUrl.pathname === '/'

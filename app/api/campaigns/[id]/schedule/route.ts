@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
@@ -6,9 +7,12 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * Agenda posts aprovados no calendario editorial.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { id } = await params
     const supabase = createServerSupabaseClient()

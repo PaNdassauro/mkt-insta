@@ -102,6 +102,9 @@ Supabase pgvector (document_chunks)
       /calendar/page.tsx                <- Calendario editorial (CRUD mensal + Kanban view)
       /calendar/[id]/page.tsx           <- Editor completo de entrada com preview Instagram
       /messages/page.tsx                <- Inbox de DMs + gestao de auto-reply rules
+      /comments/page.tsx               <- Gestao de comentarios (sync, reply, hide, delete)
+      /mentions/page.tsx               <- Mencoes e tags + galeria UGC
+      /hashtag-monitor/page.tsx        <- Monitoramento de hashtags (top/recent media)
       /report/page.tsx                  <- Relatorio PDF mensal
 ```
 
@@ -149,6 +152,10 @@ Supabase pgvector (document_chunks)
   /messages/route.ts                   <- GET conversas + POST enviar DM
   /messages/[conversationId]/route.ts  <- GET mensagens de uma conversa
   /auto-reply/route.ts                <- CRUD regras de auto-reply
+  /hashtag-monitor/route.ts           <- GET/POST monitoramento de hashtags
+
+/app/api/webhooks
+  /instagram/route.ts                  <- GET verify + POST events (Meta webhooks)
   /messages/route.ts                    <- GET conversas / POST enviar resposta via Instagram API
   /messages/[conversationId]/route.ts   <- GET mensagens de uma conversa
   /auto-reply/route.ts                  <- GET/POST/PUT/DELETE regras de auto-reply

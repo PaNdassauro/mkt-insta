@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 export async function GET() {
@@ -47,6 +48,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const body = await request.json()
     const { username, display_name } = body

@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server'
+import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
  * PATCH /api/campaigns/[id]/posts/[postId]
  * Edita um post individual da campanha.
- * Usa caption_edited/hashtags_edited para preservar o original.
  */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; postId: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { id, postId } = await params
     const body = await request.json()
