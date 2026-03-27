@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import OverviewKPIs from '@/components/instagram/OverviewKPIs'
-import GrowthChart from '@/components/instagram/GrowthChart'
-import EngagementChart from '@/components/instagram/EngagementChart'
+import dynamic from 'next/dynamic'
+const GrowthChart = dynamic(() => import('@/components/instagram/GrowthChart'), { ssr: false })
+const EngagementChart = dynamic(() => import('@/components/instagram/EngagementChart'), { ssr: false })
 import ContentScorecard from '@/components/instagram/ContentScorecard'
 import HeatmapPostingTime from '@/components/instagram/HeatmapPostingTime'
 import { useInstagramMetrics } from '@/hooks/useInstagramMetrics'

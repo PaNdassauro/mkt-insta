@@ -144,6 +144,11 @@ Supabase pgvector (document_chunks)
   /export/route.ts                      <- GET exportacao CSV
   /publish/route.ts                     <- POST publica no Instagram via Meta API
   /auto-publish/route.ts               <- POST cron que publica automaticamente posts agendados
+  /comments/route.ts                   <- GET lista + POST sync/reply/hide/delete comentarios
+  /mentions/route.ts                   <- GET lista + POST sync/save mencoes e tags
+  /messages/route.ts                   <- GET conversas + POST enviar DM
+  /messages/[conversationId]/route.ts  <- GET mensagens de uma conversa
+  /auto-reply/route.ts                <- CRUD regras de auto-reply
   /messages/route.ts                    <- GET conversas / POST enviar resposta via Instagram API
   /messages/[conversationId]/route.ts   <- GET mensagens de uma conversa
   /auto-reply/route.ts                  <- GET/POST/PUT/DELETE regras de auto-reply
@@ -707,15 +712,17 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 - [x] Auto-reply por keyword (contains/exact/starts_with) com prioridade
 - [x] UI de gestao de regras de auto-reply
 
+### Sprint 3: Comentarios + Mencoes (CONCLUIDA)
+- [x] API de comentarios (sync, reply, hide, delete via Meta API)
+- [x] Classificacao de sentimento (positive/neutral/negative/question)
+- [x] Pagina de gestao com filtros (todos/sem resposta/perguntas/ocultos)
+- [x] Reply inline com feedback instantaneo
+- [x] Rastreamento de mencoes e tags da marca
+- [x] Pagina de UGC com galeria de midias e save/unsave
+
 ### Proximos passos (backlog)
 
-**Sprint 3: Comentarios + Mencoes**
-- [ ] API de comentarios (ler, responder, ocultar, deletar)
-- [ ] Pagina de gestao de comentarios no dashboard
-- [ ] Rastreamento de mencoes e tags da marca
-- [ ] Pagina de UGC (conteudo gerado por clientes)
-
-**Sprint 4: Hashtags + Inteligencia Competitiva**
+**Sprint 4: Hashtags + Performance**
 - [ ] Monitoramento de hashtags via API (30 hashtags/semana)
 - [ ] Dashboard de hashtags com trends
 - [ ] Dynamic import do Recharts para reduzir bundle

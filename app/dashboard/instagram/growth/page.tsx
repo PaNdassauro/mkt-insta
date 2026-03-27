@@ -1,6 +1,7 @@
 'use client'
 
-import GrowthChart from '@/components/instagram/GrowthChart'
+import dynamic from 'next/dynamic'
+const GrowthChart = dynamic(() => import('@/components/instagram/GrowthChart'), { ssr: false })
 import { useInstagramMetrics } from '@/hooks/useInstagramMetrics'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatNumber } from '@/lib/analytics'
