@@ -3,10 +3,13 @@
 import { useState } from 'react'
 import EditorialCalendar from '@/components/instagram/EditorialCalendar'
 import CalendarKanban from '@/components/instagram/CalendarKanban'
+import CalendarTable from '@/components/instagram/CalendarTable'
 import { Button } from '@/components/ui/button'
 
+type ViewMode = 'calendar' | 'kanban' | 'table'
+
 export default function CalendarPage() {
-  const [view, setView] = useState<'calendar' | 'kanban'>('calendar')
+  const [view, setView] = useState<ViewMode>('calendar')
 
   return (
     <div className="space-y-6">
@@ -34,10 +37,20 @@ export default function CalendarPage() {
           >
             📋 Kanban
           </Button>
+          <Button
+            size="sm"
+            variant={view === 'table' ? 'default' : 'ghost'}
+            className="h-8 text-xs"
+            onClick={() => setView('table')}
+          >
+            📊 Tabela
+          </Button>
         </div>
       </div>
 
-      {view === 'calendar' ? <EditorialCalendar /> : <CalendarKanban />}
+      {view === 'calendar' && <EditorialCalendar />}
+      {view === 'kanban' && <CalendarKanban />}
+      {view === 'table' && <CalendarTable />}
     </div>
   )
 }
