@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 const navItems = [
   { label: 'Visao Geral', href: '/dashboard/instagram', icon: '📊' },
@@ -34,6 +35,13 @@ export default function InstagramLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    const supabase = createBrowserSupabaseClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -86,11 +94,19 @@ export default function InstagramLayout({
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border/50 p-4">
+        <div className="border-t border-border/50 p-4 space-y-2">
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs font-medium text-foreground">@welcomeweddings</p>
             <p className="text-[11px] text-muted-foreground">Ultima sync: hoje</p>
           </div>
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="Sair da conta"
+          >
+            <span aria-hidden="true">🚪</span>
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -101,6 +117,13 @@ export default function InstagramLayout({
             IG
           </div>
           <span className="text-sm font-bold">DashIG</span>
+          <button
+            onClick={handleLogout}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Sair da conta"
+          >
+            Sair
+          </button>
         </div>
         <nav className="flex overflow-x-auto border-t px-2 py-1.5" role="navigation" aria-label="Menu principal">
           {navItems.map((item) => {
