@@ -180,9 +180,9 @@ export default function EditorialCalendar() {
       {/* Header com navegacao */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => changeMonth(-1)} className="rounded-lg p-2 hover:bg-muted transition-colors text-lg">←</button>
+          <button onClick={() => changeMonth(-1)} className="rounded-lg p-2 hover:bg-muted transition-colors text-lg" aria-label="Mes anterior">←</button>
           <h2 className="text-lg font-semibold capitalize min-w-[200px] text-center">{monthLabel}</h2>
-          <button onClick={() => changeMonth(1)} className="rounded-lg p-2 hover:bg-muted transition-colors text-lg">→</button>
+          <button onClick={() => changeMonth(1)} className="rounded-lg p-2 hover:bg-muted transition-colors text-lg" aria-label="Proximo mes">→</button>
         </div>
         <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-9">
           {showForm ? 'Cancelar' : '+ Novo conteudo'}
@@ -236,7 +236,10 @@ export default function EditorialCalendar() {
 
       {/* Calendario grid */}
       {isLoading ? (
-        <Skeleton className="h-96 w-full rounded-xl" />
+        <div role="status" aria-label="Carregando calendario">
+          <span className="sr-only">Carregando calendario...</span>
+          <Skeleton className="h-96 w-full rounded-xl" />
+        </div>
       ) : (
         <Card className="border-0 shadow-sm overflow-hidden">
           <CardContent className="p-0">
@@ -279,7 +282,7 @@ export default function EditorialCalendar() {
                                     {entry.topic || typeConfig?.label}
                                   </span>
                                 </div>
-                                <Badge className={`${statusConfig.color} border-0 text-[8px] px-1 py-0 mt-0.5`}>
+                                <Badge className={`${statusConfig.color} border-0 text-[8px] px-1 py-0 mt-0.5`} aria-label={`Status: ${statusConfig.label}`}>
                                   {statusConfig.label}
                                 </Badge>
                                 {/* Actions on hover */}
@@ -304,6 +307,7 @@ export default function EditorialCalendar() {
                                       onClick={() => updateStatus(entry.id, 'APPROVED')}
                                       className="rounded bg-blue-500 px-1 py-0.5 text-[8px] text-white"
                                       title="Aprovar"
+                                      aria-label="Aprovar conteudo"
                                     >✓</button>
                                   )}
                                   {entry.status === 'APPROVED' && (
@@ -311,6 +315,7 @@ export default function EditorialCalendar() {
                                       onClick={() => setMediaUrl(entry.id)}
                                       className="rounded bg-gray-500 px-1 py-0.5 text-[8px] text-white"
                                       title="Adicionar URL de midia"
+                                      aria-label="Adicionar URL de midia"
                                     >📎</button>
                                   )}
                                   {entry.status === 'APPROVED' && (
@@ -318,6 +323,7 @@ export default function EditorialCalendar() {
                                       onClick={() => toggleAutoPublish(entry)}
                                       className={`rounded px-1 py-0.5 text-[8px] text-white ${entry.auto_publish ? 'bg-indigo-500' : 'bg-gray-400'}`}
                                       title={entry.auto_publish ? 'Desativar auto-publish' : 'Ativar auto-publish'}
+                                      aria-label={entry.auto_publish ? 'Desativar auto-publish' : 'Ativar auto-publish'}
                                     >⏰</button>
                                   )}
                                   {entry.status === 'APPROVED' && (
@@ -326,12 +332,14 @@ export default function EditorialCalendar() {
                                       disabled={publishingId === entry.id}
                                       className="rounded bg-emerald-500 px-1 py-0.5 text-[8px] text-white disabled:opacity-50"
                                       title="Publicar no Instagram agora"
+                                      aria-label="Publicar no Instagram agora"
                                     >{publishingId === entry.id ? '...' : '▶'}</button>
                                   )}
                                   <button
                                     onClick={() => deleteEntry(entry.id)}
                                     className="rounded bg-red-500 px-1 py-0.5 text-[8px] text-white"
                                     title="Remover"
+                                    aria-label="Remover conteudo"
                                   >✕</button>
                                 </div>
                               </div>

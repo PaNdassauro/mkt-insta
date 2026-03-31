@@ -17,7 +17,7 @@ export default function CalendarPage() {
             Planejamento de conteudo — agende, aprove e acompanhe publicacoes
           </p>
         </div>
-        <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
+        <div className="flex gap-1 bg-muted/50 rounded-lg p-1" role="group" aria-label="Alternar visualizacao">
           <Button
             size="sm"
             variant={view === 'calendar' ? 'default' : 'ghost'}

@@ -1,0 +1,441 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+
+interface SyncInfo {
+  tipo: string
+  ultimaExecucao: string | null
+  status: string
+}
+
+interface CronJob {
+  nome: string
+  schedule: string
+  descricao: string
+  frequencia: string
+}
+
+interface SystemHealthData {
+  token: { status: string; daysLeft: number }
+  lastSyncs: SyncInfo[]
+  cronJobs: CronJob[]
+  telegram: { configured: boolean }
+  dbStats: {
+    posts: number
+    reels: number
+    stories: number
+    campaigns: number
+    comments: number
+  }
+  storageInfo: { storyMediaFiles: number }
+}
+
+function StatusDot({ color }: { color: 'green' | 'yellow' | 'red' }) {
+  const bgClass =
+    color === 'green'
+      ? 'bg-green-500'
+      : color === 'yellow'
+        ? 'bg-yellow-500'
+        : 'bg-red-500'
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${bgClass}`} />
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return 'Nunca'
+  const d = new Date(iso)
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getSyncColor(ultimaExecucao: string | null): 'green' | 'yellow' | 'red' {
+  if (!ultimaExecucao) return 'red'
+  const hoursAgo = (Date.now() - new Date(ultimaExecucao).getTime()) / (1000 * 60 * 60)
+  if (hoursAgo <= 24) return 'green'
+  if (hoursAgo <= 72) return 'yellow'
+  return 'red'
+}
+
+export default function SystemHealthPage() {
+  const [data, setData] = useState<SystemHealthData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [refreshingToken, setRefreshingToken] = useState(false)
+  const [testingTelegram, setTestingTelegram] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/system')
+      if (res.ok) {
+        setData(await res.json())
+      } else {
+        toast.error('Erro ao carregar dados do sistema')
+      }
+    } catch {
+      toast.error('Erro ao carregar dados do sistema')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/instagram/sync', { method: 'POST' })
+      if (res.ok) {
+        toast.success('Sync iniciado com sucesso')
+        // Refresh data after a short delay
+        setTimeout(() => fetchData(), 3000)
+      } else {
+        const body = await res.json()
+        toast.error(body.error ?? 'Erro ao iniciar sync')
+      }
+    } catch {
+      toast.error('Erro ao iniciar sync')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function handleRefreshToken() {
+    setRefreshingToken(true)
+    try {
+      const res = await fetch('/api/instagram/refresh-token', { method: 'POST' })
+      const body = await res.json()
+      if (res.ok) {
+        toast.success('Token renovado com sucesso')
+        fetchData()
+      } else {
+        toast.error(body.error ?? 'Erro ao renovar token')
+      }
+    } catch {
+      toast.error('Erro ao renovar token')
+    } finally {
+      setRefreshingToken(false)
+    }
+  }
+
+  async function handleTestTelegram() {
+    setTestingTelegram(true)
+    try {
+      const res = await fetch('/api/settings/telegram-test', { method: 'POST' })
+      const body = await res.json()
+      if (res.ok) {
+        toast.success('Mensagem de teste enviada')
+      } else {
+        toast.error(body.error ?? 'Erro ao enviar mensagem de teste')
+      }
+    } catch {
+      toast.error('Erro ao enviar mensagem de teste')
+    } finally {
+      setTestingTelegram(false)
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/admin/export-all')
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const disposition = res.headers.get('Content-Disposition')
+        const filenameMatch = disposition?.match(/filename="(.+)"/)
+        a.download = filenameMatch?.[1] ?? 'dashig-export.json'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        toast.success('Exportacao concluida')
+      } else {
+        const body = await res.json()
+        toast.error(body.error ?? 'Erro ao exportar dados')
+      }
+    } catch {
+      toast.error('Erro ao exportar dados')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  function getTokenColor(): 'green' | 'yellow' | 'red' {
+    if (!data) return 'red'
+    if (data.token.status === 'valid' && data.token.daysLeft > 14) return 'green'
+    if (data.token.status === 'valid') return 'yellow'
+    return 'red'
+  }
+
+  function getTokenLabel(): string {
+    if (!data) return 'Desconhecido'
+    if (data.token.status === 'unknown') return 'Desconhecido'
+    if (data.token.daysLeft <= 0) return 'Expirado'
+    return `${data.token.daysLeft} dias restantes`
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Sistema</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Saude do sistema e informacoes tecnicas
+          </p>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Sistema</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Saude do sistema e informacoes tecnicas
+        </p>
+      </div>
+
+      {/* Section 1: Status Geral */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Status Geral</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <StatusDot color={getTokenColor()} />
+                <span className="text-sm">Token Meta</span>
+              </div>
+              <Badge
+                className={
+                  getTokenColor() === 'green'
+                    ? 'bg-green-50 text-green-600 border-0 dark:bg-green-950 dark:text-green-400'
+                    : getTokenColor() === 'yellow'
+                      ? 'bg-yellow-50 text-yellow-600 border-0 dark:bg-yellow-950 dark:text-yellow-400'
+                      : 'bg-red-50 text-red-600 border-0 dark:bg-red-950 dark:text-red-400'
+                }
+              >
+                {getTokenLabel()}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <StatusDot
+                  color={
+                    data?.lastSyncs.some((s) => s.ultimaExecucao)
+                      ? getSyncColor(
+                          data?.lastSyncs
+                            .filter((s) => s.ultimaExecucao)
+                            .sort(
+                              (a, b) =>
+                                new Date(b.ultimaExecucao!).getTime() -
+                                new Date(a.ultimaExecucao!).getTime()
+                            )[0]?.ultimaExecucao ?? null
+                        )
+                      : 'red'
+                  }
+                />
+                <span className="text-sm">Ultimo Sync</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {data?.lastSyncs.find((s) => s.ultimaExecucao)
+                  ? formatDateTime(
+                      data.lastSyncs
+                        .filter((s) => s.ultimaExecucao)
+                        .sort(
+                          (a, b) =>
+                            new Date(b.ultimaExecucao!).getTime() -
+                            new Date(a.ultimaExecucao!).getTime()
+                        )[0]?.ultimaExecucao ?? null
+                    )
+                  : 'Nunca'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <StatusDot color={data?.telegram.configured ? 'green' : 'red'} />
+                <span className="text-sm">Telegram</span>
+              </div>
+              <Badge
+                className={
+                  data?.telegram.configured
+                    ? 'bg-green-50 text-green-600 border-0 dark:bg-green-950 dark:text-green-400'
+                    : 'bg-red-50 text-red-600 border-0 dark:bg-red-950 dark:text-red-400'
+                }
+              >
+                {data?.telegram.configured ? 'Configurado' : 'Nao configurado'}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Ultimos Syncs */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Ultimos Syncs</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Tipo</th>
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Ultima Execucao</th>
+                  <th className="text-left py-2 font-medium text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.lastSyncs.map((sync) => (
+                  <tr key={sync.tipo} className="border-b border-border/50">
+                    <td className="py-2.5 pr-4">{sync.tipo}</td>
+                    <td className="py-2.5 pr-4 text-muted-foreground">
+                      {formatDateTime(sync.ultimaExecucao)}
+                    </td>
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <StatusDot color={getSyncColor(sync.ultimaExecucao)} />
+                        <span className="capitalize">{sync.status}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Cron Jobs */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Cron Jobs</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Jobs agendados via Vercel Cron. Configurados em vercel.json.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Nome</th>
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Schedule</th>
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Descricao</th>
+                  <th className="text-left py-2 font-medium text-muted-foreground">Frequencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.cronJobs.map((job) => (
+                  <tr key={job.nome} className="border-b border-border/50">
+                    <td className="py-2.5 pr-4">{job.nome}</td>
+                    <td className="py-2.5 pr-4">
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {job.schedule}
+                      </code>
+                    </td>
+                    <td className="py-2.5 pr-4 text-muted-foreground">{job.descricao}</td>
+                    <td className="py-2.5">
+                      <Badge variant="outline" className="text-xs">
+                        {job.frequencia}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 4: Estatisticas do Banco */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Estatisticas do Banco</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { label: 'Posts', value: data?.dbStats.posts ?? 0 },
+              { label: 'Reels', value: data?.dbStats.reels ?? 0 },
+              { label: 'Stories', value: data?.dbStats.stories ?? 0 },
+              { label: 'Campanhas', value: data?.dbStats.campaigns ?? 0 },
+              { label: 'Comentarios', value: data?.dbStats.comments ?? 0 },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-lg bg-muted/50 p-4 text-center"
+              >
+                <p className="text-2xl font-bold">{stat.value.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Arquivos de midia (stories):</span>
+            <span className="font-medium text-foreground">
+              {data?.storageInfo.storyMediaFiles.toLocaleString('pt-BR') ?? 0}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 5: Acoes Rapidas */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Acoes Rapidas</h2>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? 'Sincronizando...' : 'Sync Manual'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefreshToken}
+              disabled={refreshingToken}
+            >
+              {refreshingToken ? 'Renovando...' : 'Refresh Token'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleTestTelegram}
+              disabled={testingTelegram || !data?.telegram.configured}
+            >
+              {testingTelegram ? 'Enviando...' : 'Teste Telegram'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              {exporting ? 'Exportando...' : 'Exportar Dados'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

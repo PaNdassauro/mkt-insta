@@ -257,12 +257,43 @@ export default function CalendarEntryEditorPage() {
         </div>
       </div>
 
+      {/* Publish status indicator */}
+      {isPublished && entry.published_at && (
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center shrink-0">
+              <span className="text-emerald-600 dark:text-emerald-400 text-sm">&#10003;</span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Publicado</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                {new Date(entry.published_at).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {entry.published_media_id && (
+                  <span className="ml-2 text-emerald-500">ID: {entry.published_media_id}</span>
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Error banner */}
-      {entry.publish_error && (
-        <Card className="border-red-200 bg-red-50 shadow-sm">
-          <CardContent className="p-4">
-            <p className="text-sm font-medium text-red-700">Erro na publicacao</p>
-            <p className="text-xs text-red-600 mt-1">{entry.publish_error}</p>
+      {entry.publish_error && !isPublished && (
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center shrink-0">
+              <span className="text-red-600 dark:text-red-400 text-sm">&#10007;</span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">Erro na publicacao</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{entry.publish_error}</p>
+            </div>
           </CardContent>
         </Card>
       )}

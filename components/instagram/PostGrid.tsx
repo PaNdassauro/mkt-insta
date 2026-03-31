@@ -135,14 +135,14 @@ export default function PostGrid() {
   return (
     <div className="space-y-5">
       {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl bg-card p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl bg-card p-3 shadow-sm" role="group" aria-label="Filtros de posts">
         <Select
           value={sortBy}
           onValueChange={(v) => {
             if (v) setSortBy(v)
           }}
         >
-          <SelectTrigger className="w-[180px] h-9 text-sm border-border/50">
+          <SelectTrigger className="w-[180px] h-9 text-sm border-border/50" aria-label="Ordenar por">
             <SelectValue placeholder="Ordenar por" />
           </SelectTrigger>
           <SelectContent>
@@ -160,7 +160,7 @@ export default function PostGrid() {
             setMediaType(v === 'all' ? null : v)
           }}
         >
-          <SelectTrigger className="w-[160px] h-9 text-sm border-border/50">
+          <SelectTrigger className="w-[160px] h-9 text-sm border-border/50" aria-label="Filtrar por tipo de midia">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
@@ -178,7 +178,7 @@ export default function PostGrid() {
             setContentScore(v === 'all' ? null : v)
           }}
         >
-          <SelectTrigger className="w-[160px] h-9 text-sm border-border/50">
+          <SelectTrigger className="w-[160px] h-9 text-sm border-border/50" aria-label="Filtrar por score de conteudo">
             <SelectValue placeholder="Score" />
           </SelectTrigger>
           <SelectContent>
@@ -197,7 +197,8 @@ export default function PostGrid() {
 
       {/* Grid */}
       {showInitialLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label="Carregando posts">
+          <span className="sr-only">Carregando posts...</span>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="overflow-hidden rounded-xl bg-card shadow-sm">
               <Skeleton className="aspect-square w-full" />
@@ -219,7 +220,7 @@ export default function PostGrid() {
           <p className="mt-1 text-sm text-muted-foreground/70">Tente ajustar os filtros selecionados.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="list" aria-label="Lista de posts">
           {allPosts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
@@ -228,8 +229,8 @@ export default function PostGrid() {
 
       {/* Loading more spinner */}
       {showLoadingMore && (
-        <div className="flex items-center justify-center gap-2 py-4">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex items-center justify-center gap-2 py-4" role="status" aria-live="polite">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
           <span className="text-sm text-muted-foreground">Carregando mais posts...</span>
         </div>
       )}

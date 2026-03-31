@@ -110,7 +110,7 @@ export default function CommentsPage() {
             Gerencie comentarios — responda, oculte ou delete
           </p>
         </div>
-        <Button size="sm" onClick={syncComments} disabled={syncing}>
+        <Button size="sm" onClick={syncComments} disabled={syncing} aria-label="Sincronizar comentarios">
           {syncing ? 'Sincronizando...' : 'Sincronizar'}
         </Button>
       </div>
@@ -136,7 +136,7 @@ export default function CommentsPage() {
       <SentimentChart />
 
       {/* Filters */}
-      <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit" role="group" aria-label="Filtros de comentarios">
         {FILTERS.map((f) => (
           <Button
             key={f.value}
@@ -152,7 +152,8 @@ export default function CommentsPage() {
 
       {/* Comments list */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-3" role="status" aria-label="Carregando comentarios">
+          <span className="sr-only">Carregando comentarios...</span>
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -165,7 +166,7 @@ export default function CommentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" aria-live="polite">
           {comments.map((comment) => {
             const sentCfg = SENTIMENT_BADGE[comment.sentiment ?? 'NEUTRAL']
             return (
@@ -212,6 +213,7 @@ export default function CommentsPage() {
                             onChange={(e) => setReplyText(e.target.value)}
                             rows={2}
                             className="text-sm"
+                            aria-label={`Resposta para @${comment.username}`}
                             placeholder="Escreva sua resposta..."
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
@@ -239,6 +241,7 @@ export default function CommentsPage() {
                           size="sm"
                           variant="outline"
                           className="text-xs"
+                          aria-label={`Responder comentario de @${comment.username}`}
                           onClick={() => { setReplyingId(comment.comment_id); setReplyText('') }}
                         >
                           Responder
@@ -248,6 +251,7 @@ export default function CommentsPage() {
                         size="sm"
                         variant="ghost"
                         className="text-xs"
+                        aria-label={comment.is_hidden ? `Mostrar comentario de @${comment.username}` : `Ocultar comentario de @${comment.username}`}
                         onClick={() => hideComment(comment.comment_id, !comment.is_hidden)}
                       >
                         {comment.is_hidden ? 'Mostrar' : 'Ocultar'}
@@ -256,6 +260,7 @@ export default function CommentsPage() {
                         size="sm"
                         variant="ghost"
                         className="text-xs text-red-500"
+                        aria-label={`Deletar comentario de @${comment.username}`}
                         onClick={() => deleteComment(comment.comment_id)}
                       >
                         Deletar

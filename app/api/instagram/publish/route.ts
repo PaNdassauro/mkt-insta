@@ -7,6 +7,8 @@ import {
   pollContainerStatus,
   publishMedia,
 } from '@/lib/meta-client'
+import { logger } from '@/lib/logger'
+import { logActivity } from '@/lib/activity'
 
 /**
  * POST /api/instagram/publish
@@ -135,15 +137,34 @@ export const POST = withErrorHandler(async (request: Request) => {
     }
 
     // Sucesso — atualizar calendario
+    const publishedAt = new Date().toISOString()
     await supabase
       .from('instagram_editorial_calendar')
       .update({
         status: 'PUBLISHED',
         published_media_id: publishedMediaId,
-        published_at: new Date().toISOString(),
+        published_at: publishedAt,
         publish_error: null,
       })
       .eq('id', calendarEntryId)
+
+    logger.info('Post publicado com sucesso', 'Publish', {
+      calendarEntryId,
+      mediaId: publishedMediaId,
+      contentType: entry.content_type,
+    })
+
+    await logActivity({
+      action: 'instagram.publish',
+      entityType: 'calendar_entry',
+      entityId: calendarEntryId,
+      details: {
+        mediaId: publishedMediaId,
+        contentType: entry.content_type,
+        topic: entry.topic,
+        publishedAt,
+      },
+    })
 
     return apiSuccess({ success: true, mediaId: publishedMediaId })
   } catch (publishErr) {
@@ -153,6 +174,23 @@ export const POST = withErrorHandler(async (request: Request) => {
       .from('instagram_editorial_calendar')
       .update({ publish_error: errorMsg })
       .eq('id', calendarEntryId)
+
+    logger.error('Falha ao publicar post', 'Publish', {
+      calendarEntryId,
+      contentType: entry.content_type,
+      error: errorMsg,
+    })
+
+    await logActivity({
+      action: 'instagram.publish_error',
+      entityType: 'calendar_entry',
+      entityId: calendarEntryId,
+      details: {
+        contentType: entry.content_type,
+        topic: entry.topic,
+        error: errorMsg,
+      },
+    })
 
     return apiError(errorMsg)
   }

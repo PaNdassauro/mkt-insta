@@ -53,10 +53,57 @@ function buildUrl(path: string, params: Record<string, string>): string {
 }
 
 // ==========================================
+// Multi-Account Support
+// ==========================================
+
+/**
+ * Busca credenciais de uma conta Instagram pelo accountId (UUID da tabela instagram_accounts).
+ * Quando accountId nao e fornecido, faz fallback para env vars (comportamento legado).
+ */
+export async function getAccountCredentials(
+  accountId?: string
+): Promise<{ igUserId: string; accessToken: string }> {
+  if (!accountId) {
+    // Fallback legado: env vars + app_config
+    const accessToken = await getAccessToken()
+    const igUserId = process.env.META_IG_USER_ID ?? 'me'
+    return { igUserId, accessToken }
+  }
+
+  const supabase = createServerSupabaseClient()
+  const { data, error } = await supabase
+    .from('instagram_accounts')
+    .select('ig_user_id, access_token, is_active')
+    .eq('id', accountId)
+    .single()
+
+  if (error || !data) {
+    throw new Error(`Instagram account not found: ${accountId}`)
+  }
+
+  const account = data as { ig_user_id: string; access_token: string; is_active: boolean }
+
+  if (!account.is_active) {
+    throw new Error(`Instagram account is deactivated: ${accountId}`)
+  }
+
+  return {
+    igUserId: account.ig_user_id,
+    accessToken: account.access_token,
+  }
+}
+
+// ==========================================
 // Token Management
 // ==========================================
 
-export async function getAccessToken(): Promise<string> {
+export async function getAccessToken(accountId?: string): Promise<string> {
+  // Se accountId fornecido, buscar token direto da tabela instagram_accounts
+  if (accountId) {
+    const { accessToken } = await getAccountCredentials(accountId)
+    return accessToken
+  }
+
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('app_config')
@@ -74,10 +121,37 @@ export async function getAccessToken(): Promise<string> {
   return data.value
 }
 
-export async function checkTokenExpiration(): Promise<{
+export async function checkTokenExpiration(accountId?: string): Promise<{
   isExpiring: boolean
   daysLeft: number
 }> {
+  // Se accountId fornecido, verificar token_expires_at da tabela instagram_accounts
+  if (accountId) {
+    const supabase = createServerSupabaseClient()
+    const { data, error } = await supabase
+      .from('instagram_accounts')
+      .select('token_expires_at')
+      .eq('id', accountId)
+      .single()
+
+    const account = data as { token_expires_at: string | null } | null
+
+    if (error || !account || !account.token_expires_at) {
+      return { isExpiring: true, daysLeft: 0 }
+    }
+
+    const expiresAt = new Date(account.token_expires_at)
+    const now = new Date()
+    const daysLeft = Math.floor(
+      (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    return {
+      isExpiring: daysLeft < TOKEN_EXPIRY_ALERT_DAYS,
+      daysLeft,
+    }
+  }
+
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('app_config')

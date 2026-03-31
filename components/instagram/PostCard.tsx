@@ -26,7 +26,7 @@ export default function PostCard({ post }: PostCardProps) {
     : null
 
   return (
-    <Card className="group overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-200">
+    <Card role="listitem" className="group overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-200">
       {/* Thumbnail */}
       <a
         href={post.permalink ?? '#'}

@@ -123,7 +123,8 @@ export default function OverviewPage() {
         </CardHeader>
         <CardContent className="pt-0">
           {postsLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3" role="status" aria-label="Carregando top posts">
+              <span className="sr-only">Carregando top posts...</span>
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3 p-3">
                   <div className="h-7 w-7 animate-pulse rounded-full bg-muted" />
@@ -135,7 +136,7 @@ export default function OverviewPage() {
               ))}
             </div>
           ) : topPosts.length > 0 ? (
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/50" aria-live="polite">
               {topPosts.map((post, i) => (
                 <TopPostCard key={post.id} post={post} rank={i + 1} />
               ))}

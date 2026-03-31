@@ -35,7 +35,8 @@ export default function CampaignsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" role="status" aria-label="Carregando campanhas">
+        <span className="sr-only">Carregando campanhas...</span>
         <Skeleton className="h-10 w-64" />
         <div className="grid gap-3">
           {[1, 2, 3].map((i) => (
@@ -77,7 +78,7 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-3" aria-live="polite">
           {campaigns.map((campaign) => {
             const statusCfg = STATUS_CONFIG[campaign.status] ?? STATUS_CONFIG.DRAFT
 
@@ -101,6 +102,7 @@ export default function CampaignsPage() {
                           <Badge
                             variant="secondary"
                             className={`text-[10px] shrink-0 ${statusCfg.className}`}
+                            aria-label={`Status: ${statusCfg.label}`}
                           >
                             {statusCfg.label}
                           </Badge>

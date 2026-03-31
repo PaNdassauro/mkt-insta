@@ -7,6 +7,8 @@ import {
   pollContainerStatus,
   publishMedia,
 } from '@/lib/meta-client'
+import { logger } from '@/lib/logger'
+import { logActivity } from '@/lib/activity'
 
 /**
  * POST /api/instagram/auto-publish
@@ -116,15 +118,34 @@ export const POST = withErrorHandler(async (request: Request) => {
         publishedMediaId = await publishMedia(token, userId, containerId)
       }
 
+      const publishedAt = new Date().toISOString()
       await supabase
         .from('instagram_editorial_calendar')
         .update({
           status: 'PUBLISHED',
           published_media_id: publishedMediaId,
-          published_at: new Date().toISOString(),
+          published_at: publishedAt,
           publish_error: null,
         })
         .eq('id', entry.id)
+
+      logger.info('Auto-publish: post publicado', 'Auto-Publish', {
+        entryId: entry.id,
+        mediaId: publishedMediaId,
+        contentType: entry.content_type,
+      })
+
+      await logActivity({
+        action: 'instagram.auto_publish',
+        entityType: 'calendar_entry',
+        entityId: entry.id,
+        details: {
+          mediaId: publishedMediaId,
+          contentType: entry.content_type,
+          topic: entry.topic,
+          publishedAt,
+        },
+      })
 
       results.push({ id: entry.id, status: 'published', mediaId: publishedMediaId })
     } catch (err) {
@@ -133,6 +154,23 @@ export const POST = withErrorHandler(async (request: Request) => {
         .from('instagram_editorial_calendar')
         .update({ publish_error: errorMsg })
         .eq('id', entry.id)
+
+      logger.error('Auto-publish: falha ao publicar', 'Auto-Publish', {
+        entryId: entry.id,
+        contentType: entry.content_type,
+        error: errorMsg,
+      })
+
+      await logActivity({
+        action: 'instagram.auto_publish_error',
+        entityType: 'calendar_entry',
+        entityId: entry.id,
+        details: {
+          contentType: entry.content_type,
+          topic: entry.topic,
+          error: errorMsg,
+        },
+      })
 
       results.push({ id: entry.id, status: 'error', error: errorMsg })
     }

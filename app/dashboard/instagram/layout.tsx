@@ -25,6 +25,7 @@ const navItems = [
   { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
   { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: '📜' },
   { label: 'Usuarios', href: '/dashboard/instagram/settings/users', icon: '🔐' },
+  { label: 'Sistema', href: '/dashboard/instagram/settings/system', icon: '🖥' },
 ]
 
 export default function InstagramLayout({
@@ -55,7 +56,7 @@ export default function InstagramLayout({
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-0.5 p-3">
+        <nav className="flex flex-1 flex-col gap-0.5 p-3" role="navigation" aria-label="Menu principal">
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Menu
           </p>
@@ -69,6 +70,7 @@ export default function InstagramLayout({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all',
                   isActive
@@ -76,7 +78,7 @@ export default function InstagramLayout({
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
-                <span className="text-base">{item.icon}</span>
+                <span className="text-base" aria-hidden="true">{item.icon}</span>
                 {item.label}
               </Link>
             )
@@ -100,7 +102,7 @@ export default function InstagramLayout({
           </div>
           <span className="text-sm font-bold">DashIG</span>
         </div>
-        <nav className="flex overflow-x-auto border-t px-2 py-1.5">
+        <nav className="flex overflow-x-auto border-t px-2 py-1.5" role="navigation" aria-label="Menu principal">
           {navItems.map((item) => {
             const isActive =
               item.href === '/dashboard/instagram'
@@ -111,6 +113,7 @@ export default function InstagramLayout({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
                   isActive
@@ -118,7 +121,7 @@ export default function InstagramLayout({
                     : 'text-muted-foreground'
                 )}
               >
-                <span>{item.icon}</span>
+                <span aria-hidden="true">{item.icon}</span>
                 {item.label}
               </Link>
             )

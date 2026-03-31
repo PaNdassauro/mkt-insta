@@ -407,6 +407,18 @@ export interface InstagramComment {
   created_at: string
 }
 
+export interface InstagramAccount {
+  id: string
+  ig_user_id: string
+  username: string | null
+  access_token: string
+  token_expires_at: string | null
+  label: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface InstagramMention {
   id: string
   media_id: string
