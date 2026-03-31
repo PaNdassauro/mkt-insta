@@ -27,8 +27,8 @@ export async function GET(request: Request) {
     const [snapshotSync, storiesSync, audienceSync] = await Promise.all([
       supabase
         .from('instagram_account_snapshots')
-        .select('captured_at')
-        .order('captured_at', { ascending: false })
+        .select('date, created_at')
+        .order('date', { ascending: false })
         .limit(1)
         .single(),
       supabase
@@ -39,8 +39,8 @@ export async function GET(request: Request) {
         .single(),
       supabase
         .from('instagram_audience_snapshots')
-        .select('captured_at')
-        .order('captured_at', { ascending: false })
+        .select('week_start, created_at')
+        .order('week_start', { ascending: false })
         .limit(1)
         .single(),
     ])
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     const lastSyncs = [
       {
         tipo: 'Posts / Metricas',
-        ultimaExecucao: snapshotSync.data?.captured_at ?? null,
+        ultimaExecucao: snapshotSync.data?.created_at ?? null,
         status: snapshotSync.data ? 'ok' : 'sem dados',
       },
       {
@@ -58,18 +58,19 @@ export async function GET(request: Request) {
       },
       {
         tipo: 'Audiencia',
-        ultimaExecucao: audienceSync.data?.captured_at ?? null,
+        ultimaExecucao: audienceSync.data?.created_at ?? null,
         status: audienceSync.data ? 'ok' : 'sem dados',
       },
     ]
 
     // --- Cron jobs (static list) ---
     const cronJobs = [
-      { nome: 'Sync de midias e metricas', schedule: '0 6 * * *', descricao: 'Diario as 06:00 UTC', frequencia: 'Diario' },
-      { nome: 'Sync de stories', schedule: '0 */4 * * *', descricao: 'A cada 4 horas', frequencia: '6x/dia' },
-      { nome: 'Sync de audiencia', schedule: '0 7 * * 1', descricao: 'Semanal (segunda 07:00 UTC)', frequencia: 'Semanal' },
-      { nome: 'Relatorio semanal', schedule: '0 8 * * 1', descricao: 'Semanal (segunda 08:00 UTC)', frequencia: 'Semanal' },
-      { nome: 'Refresh de token', schedule: '0 3 */7 * *', descricao: 'A cada 7 dias as 03:00 UTC', frequencia: 'A cada 7 dias' },
+      { nome: 'dashig-sync-daily', schedule: '0 11 * * *', descricao: 'Diario as 08:00 BRT (11:00 UTC)', frequencia: 'Diario' },
+      { nome: 'dashig-sync-stories', schedule: '0 14 * * *', descricao: 'Diario as 11:00 BRT (14:00 UTC)', frequencia: 'Diario' },
+      { nome: 'dashig-sync-audience', schedule: '0 11 * * 1', descricao: 'Segunda as 08:00 BRT (11:00 UTC)', frequencia: 'Semanal' },
+      { nome: 'dashig-report-monthly', schedule: '0 8 1 * *', descricao: 'Dia 1 as 05:00 BRT (08:00 UTC)', frequencia: 'Mensal' },
+      { nome: 'dashig-knowledge-scrape', schedule: '0 9 * * 1', descricao: 'Segunda as 06:00 BRT (09:00 UTC)', frequencia: 'Semanal' },
+      { nome: 'dashig-auto-publish', schedule: '*/30 * * * *', descricao: 'A cada 30 minutos', frequencia: 'Contínuo' },
     ]
 
     // --- Telegram config ---
