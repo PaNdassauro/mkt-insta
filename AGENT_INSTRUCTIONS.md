@@ -5,13 +5,13 @@
 
 ## 1. Contexto rapido
 
-Voce esta desenvolvendo o **DashIG**, um dashboard de analytics e geracao de campanhas de Instagram para a **Welcome Weddings** (@welcomeweddings). Antes de comecar qualquer tarefa, leia o `ARCHITECTURE.md` (estrutura tecnica) e o `PROMPT_CONTEXT.md` (dominio de negocio).
+Voce esta desenvolvendo o **DashIG**, um dashboard de analytics, campanhas e engajamento de Instagram para a **Welcome Weddings** (@welcomeweddings). Antes de comecar qualquer tarefa, leia o `ARCHITECTURE.md` (estrutura tecnica) e o `PROMPT_CONTEXT.md` (dominio de negocio).
 
-**Stack**: Next.js 14 · TypeScript · Supabase (PostgreSQL + pgvector) · Tailwind CSS · shadcn/ui (v3/Radix) · Recharts · Meta Graph API v21.0 · Vercel · OpenAI Embeddings · Anthropic Claude API
+**Stack**: Next.js 14 · TypeScript · Supabase (PostgreSQL + pgvector + Auth + RLS) · Tailwind CSS v3 · shadcn/ui (v3/Radix) · Recharts · Meta Graph API v21.0 · Vercel · OpenAI Embeddings · Anthropic Claude API · Telegram Bot API · Vitest · Playwright
 
-**Estado atual**:
-- Fases 1–5 (Analytics) completamente implementadas com dados reais da @welcomeweddings
-- Campaign Studio em desenvolvimento (Fases A–D)
+**Estado atual**: 12 sprints concluidos. Sistema completo com analytics, Campaign Studio, engagement (DMs/comentarios/mencoes), Knowledge Base, calendario editorial com publicacao, roles de usuario, logging estruturado, E2E tests.
+
+**Numeros**: 52 API routes, 29 pages, 21 migrations, 11 unit test files, 5 E2E specs.
 
 ---
 
@@ -21,7 +21,6 @@ Voce esta desenvolvendo o **DashIG**, um dashboard de analytics e geracao de cam
 - [ ] Leu o `ARCHITECTURE.md`?
 - [ ] Leu o `PROMPT_CONTEXT.md`?
 - [ ] Qual feature ou bug sera trabalhado?
-- [ ] E Analytics (existente) ou Campaign Studio (novo)?
 - [ ] O dev server esta rodando? (`npm run dev -- -p 3001`)
 - [ ] Se erro de cache: `rm -rf .next && npm run dev`
 
@@ -31,23 +30,79 @@ Voce esta desenvolvendo o **DashIG**, um dashboard de analytics e geracao de cam
 3. "Este endpoint e chamado pelo dashboard, pelo cron job ou pelo Campaign Studio?"
 4. "Se Campaign Studio: o pgvector esta habilitado e a migration 006 foi executada?"
 5. "Qual e o comportamento esperado quando os dados estao vazios?"
+6. "Qual role (admin/editor/viewer) pode acessar essa funcionalidade?"
 
 ---
 
-## 3. Regras de desenvolvimento — Analytics (OBRIGATORIAS)
+## 3. Regras de desenvolvimento (OBRIGATORIAS)
 
 ### 3.1 TypeScript
 - **Sempre** usar TypeScript. Sem `any` — use `unknown` e type guards.
 - Todos os tipos estao em `/types/instagram.ts`. Verificar antes de criar novos.
 
 ### 3.2 Supabase
+- **Server**: `createServerSupabaseClient()` de `@/lib/supabase`
+- **Browser**: `createBrowserSupabaseClient()` de `@/lib/supabase-browser`
 - **Nunca** usar `SUPABASE_SERVICE_ROLE_KEY` em componentes client-side.
-- Server: `createServerSupabaseClient()` de `@/lib/supabase`
-- Browser: `createBrowserSupabaseClient()` de `@/lib/supabase`
 - **Sempre** upsert com `ON CONFLICT DO UPDATE` — nunca delete + insert.
 - **Sempre** verificar `error` antes de usar `data`.
 
-### 3.3 Meta Graph API v21+
+### 3.3 Auth — TODAS as rotas devem ser protegidas
+- **Rotas de cron/sync/knowledge**: usar `validateCronSecret(request)` de `lib/auth.ts`
+- **Rotas de dashboard (GET/POST/PATCH/DELETE)**: usar `validateDashboardRequest(request)` de `lib/auth.ts`
+- **Nunca** criar rota sem auth — toda rota precisa de `validateCronSecret` OU `validateDashboardRequest`.
+
+```typescript
+// Exemplo: rota de cron
+import { validateCronSecret } from '@/lib/auth'
+
+export async function POST(request: Request) {
+  const authError = validateCronSecret(request)
+  if (authError) return authError
+  // ...
+}
+
+// Exemplo: rota de dashboard
+import { validateDashboardRequest } from '@/lib/auth'
+
+export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+  // ...
+}
+```
+
+### 3.4 Respostas de API — usar helpers padronizados
+- **Sempre** usar `apiSuccess`/`apiError`/`getErrorMessage` de `@/lib/api-response.ts`
+- **Nunca** usar `NextResponse.json()` diretamente
+
+```typescript
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+
+export async function GET(request: Request) {
+  try {
+    const data = await fetchSomething()
+    return apiSuccess(data)               // 200
+    return apiSuccess(data, 200, 300)     // com cache 300s
+  } catch (err) {
+    return apiError(getErrorMessage(err))  // 500
+  }
+}
+```
+
+### 3.5 Logging — usar logger estruturado
+- **Sempre** usar `logger` de `@/lib/logger.ts`
+- **Nunca** usar `console.log`, `console.error`, `console.warn` diretamente
+
+```typescript
+import { logger } from '@/lib/logger'
+
+logger.info('Sync concluido', 'Instagram Sync', { posts: 42 })
+logger.warn('Token expirando', 'Auth', { days: 5 })
+logger.error('Falha no sync', 'Instagram Sync', error)
+```
+
+### 3.6 Meta Graph API v21+
 - Toda chamada via `meta-client.ts` — nunca fetch direto.
 - Rate limits com retry/backoff exponencial (ja implementado).
 - Token de `app_config` no Supabase (fallback env apenas setup inicial).
@@ -58,17 +113,25 @@ Voce esta desenvolvendo o **DashIG**, um dashboard de analytics e geracao de cam
 - **following_count removido**: nao existe na v21+.
 - **navigation**: substitui exits/taps_forward/taps_back nos Stories (v22+).
 
-### 3.4 Componentes React
+### 3.7 Componentes React
 - Graficos (Recharts) sempre em Client Components com `'use client'`.
+- Usar dynamic import para Recharts (reduz bundle).
 - Sempre implementar: loading (skeleton), erro (mensagem amigavel), vazio (empty state).
 - Todos os calculos em `lib/analytics.ts`, nunca inline.
+- Usar `ErrorBoundary` de `@/components/ErrorBoundary.tsx` para secoes criticas.
+- Usar `useSessionCheck()` de `@/hooks/useSessionCheck` em layouts autenticados.
+- Usar `useNotificationBadges()` de `@/hooks/useNotificationBadges` para badges no sidebar.
+- Usar `useCurrentAccount()` de `@/hooks/useCurrentAccount` para contexto de conta.
 
-### 3.5 Auth de cron jobs
-- Usar `validateCronSecret()` de `lib/auth.ts` em TODAS as rotas de sync e knowledge.
-- Nunca duplicar a logica — sempre usar o helper centralizado.
-
-### 3.6 HTML/XSS
+### 3.8 HTML/XSS
 - Ao inserir dados do usuario em HTML, usar `escapeHtml()` de `lib/auth.ts`.
+
+### 3.9 Roles de usuario
+- Verificar role via `getUserRole()` de `lib/roles.ts` antes de operacoes restritas.
+- Admin: acesso total. Editor: CRUD de conteudo. Viewer: somente leitura.
+
+### 3.10 Log de atividades
+- Registrar acoes relevantes com `logActivity()` de `lib/activity.ts`.
 
 ---
 
@@ -90,21 +153,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   })
   return response.data[0].embedding
 }
-
-// Para lotes (max 100 por request)
-export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  const batches = chunkArray(texts, 100)
-  const results: number[][] = []
-  for (const batch of batches) {
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: batch.map(t => t.replace(/\n/g, ' '))
-    })
-    results.push(...response.data.map(d => d.embedding))
-    await new Promise(r => setTimeout(r, 200)) // rate limit
-  }
-  return results
-}
 ```
 
 **Chunking**: sempre com overlap para nao perder contexto entre chunks.
@@ -112,23 +160,6 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 - Nunca cortar no meio de uma frase — preferir paragrafos ou pontos finais
 
 **Vector search**: sempre via funcao SQL `search_knowledge()` — nunca calculo de distancia no TypeScript.
-
-```typescript
-// /lib/rag/vector-search.ts
-export async function vectorSearch(
-  queryEmbedding: number[],
-  options: { threshold?: number; limit?: number } = {}
-): Promise<SearchResult[]> {
-  const { threshold = 0.70, limit = 8 } = options
-  const { data, error } = await supabase.rpc('search_knowledge', {
-    query_embedding: queryEmbedding,
-    match_threshold: threshold,
-    match_count: limit
-  })
-  if (error) throw new Error(`Vector search failed: ${error.message}`)
-  return data
-}
-```
 
 **Re-indexacao**: deletar o documento pai (CASCADE limpa chunks automaticamente) antes de re-indexar.
 
@@ -138,56 +169,9 @@ export async function vectorSearch(
 
 **Modelo**: `claude-sonnet-4-20250514` — melhor relacao custo/velocidade para geracao de campanhas com streaming.
 
-**Streaming obrigatorio**: geracao leva 30–60s. Sem streaming = tela em branco.
+**Streaming obrigatorio**: geracao leva 30-60s. Sem streaming = tela em branco.
 
-```typescript
-// /app/api/campaigns/generate/route.ts
-import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic()
-
-const stream = anthropic.messages.stream({
-  model: 'claude-sonnet-4-20250514',
-  max_tokens: 8000,
-  system: systemPrompt,
-  messages: [{ role: 'user', content: userPrompt }]
-})
-
-const readable = new ReadableStream({
-  async start(controller) {
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        controller.enqueue(new TextEncoder().encode(event.delta.text))
-      }
-    }
-    const message = await stream.finalMessage()
-    const campaignJSON = extractJSON(message.content[0].text)
-    await persistCampaign(campaignId, campaignJSON)
-    controller.close()
-  }
-})
-```
-
-**Parser de JSON**: o Claude pode retornar com whitespace variavel. Sempre extrair e validar.
-
-```typescript
-// /lib/campaign/campaign-parser.ts
-export function extractJSON(text: string): CampaignOutput {
-  const clean = text.replace(/```json\n?|\n?```/g, '').trim()
-  try {
-    const parsed = JSON.parse(clean)
-    return validateCampaignSchema(parsed)
-  } catch (err) {
-    throw new Error(`Failed to parse campaign JSON: ${err}`)
-  }
-}
-
-export function validateCampaignSchema(data: unknown): CampaignOutput {
-  // Verificar campos obrigatorios
-  // Retornar com defaults para campos opcionais ausentes
-  // NUNCA deixar o sistema quebrar por campo opcional faltando
-}
-```
+**Parser de JSON**: o Claude pode retornar com whitespace variavel. Sempre extrair e validar via `campaign-parser.ts`.
 
 ### 4.3 Edicao nao-destrutiva (CRITICO)
 
@@ -208,35 +192,9 @@ No editor, sempre exibir `caption_edited ?? caption`. Se ha edicao, mostrar badg
 ### 4.4 Agendamento
 
 Ao agendar uma campanha aprovada, mapear `campaign_posts` -> `instagram_editorial_calendar`:
-
-```typescript
-// /app/api/campaigns/[id]/schedule/route.ts
-const approvedPosts = campaignPosts.filter(p => p.status === 'APPROVED')
-
-for (const post of approvedPosts) {
-  const { data: calEntry } = await supabase
-    .from('instagram_editorial_calendar')
-    .insert({
-      scheduled_for: post.scheduled_for,
-      content_type: post.format,
-      caption_draft: post.caption_edited ?? post.caption,
-      hashtags_plan: post.hashtags_edited ?? post.hashtags,
-      notes: [post.cta, post.visual_brief, post.visual_notes].filter(Boolean).join('\n\n'),
-      status: 'APPROVED'
-    })
-    .select().single()
-
-  // Vincula de volta ao campaign_post
-  await supabase.from('campaign_posts')
-    .update({ calendar_entry_id: calEntry.id })
-    .eq('id', post.id)
-}
-
-// Atualiza status da campanha
-await supabase.from('instagram_campaigns')
-  .update({ status: 'SCHEDULED' })
-  .eq('id', campaignId)
-```
+- Filtrar apenas posts com `status === 'APPROVED'`
+- Vincular `campaign_post.calendar_entry_id` apos insercao
+- Atualizar `instagram_campaigns.status` para `SCHEDULED`
 
 ### 4.5 Status de campanha
 
@@ -250,6 +208,7 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 ### 5.1 Design system
 - **shadcn/ui v3** (Radix primitives) — NAO usar v4 (base-ui, incompativel com Tailwind v3).
 - **Tailwind CSS v3** — sem CSS modules, sem styled-components.
+- **Dark mode**: suportado via `next-themes` (ThemeProvider + ThemeToggle).
 - Cards: `border-0 shadow-sm hover:shadow-md transition-all`
 - Paleta Content Score:
   - VIRAL: `text-orange-500` / `bg-orange-50`
@@ -269,6 +228,7 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 - Cores: `#4F46E5` (indigo), `#06B6D4` (cyan)
 - Tooltips em portugues com `contentStyle` customizado
 - Gradientes via `<defs><linearGradient>`
+- Usar dynamic import para otimizar bundle
 
 ### 5.3 Tabelas
 - Usar `Table` do shadcn/ui com `rounded-lg border overflow-hidden`
@@ -281,11 +241,14 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 - Barra de progresso estimada
 - Botao de cancelar disponivel durante a geracao
 
+### 5.5 Toasts
+- Usar `toast` do Sonner para feedback instantaneo (sucesso, erro, info)
+
 ---
 
 ## 6. Modulos e responsabilidades
 
-### 6.1 Analytics (existentes)
+### 6.1 Analytics
 
 **`/api/instagram/sync` — Cron Principal**
 1. Valida CRON_SECRET via `validateCronSecret()`
@@ -304,97 +267,58 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 5. Persiste video no Storage (`videos/{media_id}.mp4`) se `media_type === 'VIDEO'`
 6. Upsert com `stored_media_url` e `stored_video_url`
 
-**`meta-client.ts`**
-```typescript
-getAccountInfo(token, userId?)
-getMediaList(token, userId, maxItems?)
-getMediaInsights(token, mediaId, type)
-getAccountInsights(token, userId)
-getActiveStories(token, userId)
-getStoryInsights(token, mediaId)
-getAudienceInsights(token, userId)
-refreshLongLivedToken(token)
-getAccessToken()
-checkTokenExpiration()
-saveToken(token, expiresAt)
-```
+**`meta-client.ts`**: wrapper completo da Meta Graph API v21.0 com retry/backoff.
 
-**`analytics.ts`**
-```typescript
-calcEngagementRate(likes, comments, saves, shares, reach)
-calcQEI(likes, comments, saves, shares, reach)
-calcContentScore(engagementRate, mean, stdDev)
-calcMeanAndStdDev(values)
-calcCompletionRate(avgWatchTime, duration)
-extractHashtags(caption)
-formatNumber(n)     // pt-BR
-formatPercent(n)    // pt-BR
-```
+**`analytics.ts`**: funcoes puras — `calcEngagementRate`, `calcQEI`, `calcContentScore`, `calcCompletionRate`, `extractHashtags`, `formatNumber`, `formatPercent`.
 
-### 6.2 Campaign Studio (novos)
+### 6.2 Campaign Studio
 
-**`/api/campaigns/generate`**
-1. Valida CRON_SECRET (mesmo mecanismo — campanhas so podem ser geradas internamente)
-2. Cria rascunho com status `GENERATING` em `instagram_campaigns`
-3. Chama `prompt-builder.ts` (vector search + metrics query + system prompt)
-4. Chama Claude API com streaming
-5. Retorna ReadableStream para o cliente
-6. Ao finalizar: `campaign-parser.ts` valida + `saveCampaignPosts()`
+**`/api/campaigns/generate`**: orquestra RAG + Claude API com streaming.
+**`/api/campaigns/[id]/schedule`**: mapeia posts aprovados para calendario editorial.
+**`/api/campaigns/[id]/chat`**: chat estrategico com IA sobre a campanha.
+**`/api/campaigns/[id]/brief`**: gera brief visual formatado para designer.
+**`/api/campaigns/[id]/media`**: vincula midias reais publicadas a campanhas.
 
-**`/api/campaigns/[id]/schedule`**
-1. Verifica que todos os posts estao `APPROVED`
-2. Mapeia cada post para `instagram_editorial_calendar`
-3. Vincula `campaign_post.calendar_entry_id`
-4. Atualiza `instagram_campaigns.status` para `SCHEDULED`
+**`prompt-builder.ts`**: monta prompt com 3 camadas de contexto (marca, performance, boas praticas).
+**`campaign-parser.ts`**: parseia e valida JSON gerado pelo Claude.
+**`system-prompt.ts`**: system prompt com boas praticas do Instagram.
 
-**`prompt-builder.ts`**
-Monta o prompt com 3 camadas:
-1. Vector search: `generateEmbedding(theme + objective + audience)` -> `vectorSearch({threshold: 0.70, limit: 8})`
-2. Metrics: `getTopPostsByScore(10)` + `getLatestAudienceSnapshot()` + `getTopHashtags(20)` + `getBestSlots(5)`
-3. System prompt com boas praticas
+### 6.3 Knowledge Base
 
-**`/api/knowledge/ingest`**
-1. Valida CRON_SECRET
-2. Recebe PDF via multipart/form-data
-3. Extrai texto com `pdf-parser.ts`
-4. Chunkea com `chunker.ts` (512 tokens, overlap 64)
-5. Gera embeddings em lotes de 100
-6. Upsert em `document_chunks`
+**`/api/knowledge/ingest`**: upload e ingestao de PDFs (chunking + embeddings).
+**`/api/knowledge/scrape`**: scraping do site (manual ou cron semanal).
+**`/api/knowledge/documents`**: lista e toggle de documentos.
 
-**`/api/knowledge/scrape`**
-1. Valida CRON_SECRET
-2. Scrapa paginas configuradas do site da Welcome Weddings
-3. Extrai conteudo relevante (sem nav/footer/scripts)
-4. Chunkea + embeddings
-5. Upsert por URL + chunk_index
+### 6.4 Engagement
+
+**`/api/instagram/comments`**: sync, reply, hide, delete comentarios.
+**`/api/instagram/comments/sentiment`**: distribuicao de sentimento.
+**`/api/instagram/mentions`**: sync e save mencoes e tags.
+**`/api/instagram/messages`**: conversas e envio de DMs.
+**`/api/instagram/auto-reply`**: CRUD de regras de auto-reply.
 
 ---
 
 ## 7. Como retomar o desenvolvimento
 
-### 7.1 Analytics (ja funcionando)
+### 7.1 Setup basico
 ```bash
 1. npm install
-2. Verificar .env.local (Meta + Supabase + CRON_SECRET)
+2. Verificar .env.local (todas as vars — ver ARCHITECTURE.md secao 15)
 3. npm run dev -- -p 3001
 4. Se erro de cache: rm -rf .next && npm run dev
 5. Se banco vazio: curl -X POST http://localhost:3001/api/instagram/sync \
    -H "Authorization: Bearer {CRON_SECRET}"
-6. Acessar http://localhost:3001/dashboard/instagram
+6. Acessar http://localhost:3001/login
 ```
 
-### 7.2 Campaign Studio (setup inicial)
+### 7.2 Campaign Studio
 ```bash
-1. Habilitar pgvector no Supabase: CREATE EXTENSION IF NOT EXISTS vector;
-2. Executar migration 006_campaign_studio.sql
-3. Adicionar ao .env.local:
-   OPENAI_API_KEY=
-   ANTHROPIC_API_KEY=
-   WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
-4. Verificar se pg_cron dashig-knowledge-scrape foi criado
-5. Fazer upload dos primeiros PDFs via /knowledge
-6. Testar busca vetorial com uma query real
-7. Testar geracao de campanha completa
+1. Verificar pgvector habilitado: CREATE EXTENSION IF NOT EXISTS vector;
+2. Verificar migration 006 executada
+3. Verificar OPENAI_API_KEY e ANTHROPIC_API_KEY no .env.local
+4. Upload de PDFs via /knowledge
+5. Testar geracao de campanha completa
 ```
 
 ---
@@ -414,7 +338,10 @@ Monta o prompt com 3 camadas:
 | XSS no report | Usar `escapeHtml()` de `lib/auth.ts` |
 | Embeddings no client-side | `OPENAI_API_KEY` e server-only. Embeddings apenas em API Routes |
 | `caption` sobrescrito ao editar | Usar `caption_edited` — nunca alterar `caption` original |
-| Parser quebrar com campo ausente | `validateCampaignSchema()` com defaults para todos os campos opcionais |
+| Rota sem auth | Usar `validateCronSecret` ou `validateDashboardRequest` em TODAS as rotas |
+| `console.log` no codigo | Usar `logger` de `lib/logger.ts` |
+| `NextResponse.json()` direto | Usar `apiSuccess`/`apiError` de `lib/api-response.ts` |
+| `createBrowserSupabaseClient` de `lib/supabase` | Client components usam `lib/supabase-browser.ts` |
 | Chunks sem overlap | Usar overlap de 64 tokens para nao perder contexto |
 | Re-indexar sem limpar chunks antigos | Deletar documento pai (CASCADE limpa chunks) |
 | Campanha sem system prompt | System prompt com boas praticas e obrigatorio em toda geracao |
@@ -425,20 +352,22 @@ Monta o prompt com 3 camadas:
 
 ## 9. Checklist antes de finalizar uma tarefa
 
-**Geral:**
+**Obrigatorio:**
 - [ ] `npx tsc --noEmit` sem erros?
+- [ ] `npm test` sem falhas?
 - [ ] `npm run build` sem erros?
 - [ ] Todos os estados (loading, erro, vazio) implementados?
 - [ ] Dados sensiveis apenas server-side?
+- [ ] Auth em todas as rotas (`validateCronSecret` ou `validateDashboardRequest`)?
+- [ ] Respostas com `apiSuccess`/`apiError` (nao `NextResponse.json` direto)?
+- [ ] Logs com `logger` (nao `console.log`)?
 - [ ] Calculos em `analytics.ts`, nao inline?
 - [ ] Upsert com `ON CONFLICT DO UPDATE`?
 - [ ] Graficos com `ResponsiveContainer`?
 - [ ] Numeros formatados em pt-BR?
-- [ ] Auth via `validateCronSecret()` (se rota de sync/knowledge)?
 - [ ] HTML sanitizado com `escapeHtml()` (se aplicavel)?
 
 **Campaign Studio (adicional):**
-- [ ] pgvector habilitado e migration 006 executada?
 - [ ] Embeddings gerados apenas server-side?
 - [ ] Modelo `claude-sonnet-4-20250514` sendo usado?
 - [ ] System prompt com boas praticas enviado?
@@ -448,18 +377,23 @@ Monta o prompt com 3 camadas:
 - [ ] Agendamento filtrando apenas posts `APPROVED`?
 - [ ] `calendar_entry_id` vinculado apos agendamento?
 
+**Testes (quando aplicavel):**
+- [ ] `npm run test:e2e` sem falhas? (Playwright)
+
 ---
 
 ## 10. Referencias rapidas
 
 - Meta Graph API v21+: https://developers.facebook.com/docs/instagram-api
-- Permissoes: `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement`
+- Permissoes: `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_messages`
 - Supabase JS v2: https://supabase.com/docs/reference/javascript
 - Supabase pgvector: https://supabase.com/docs/guides/ai/vector-columns
+- Supabase Auth: https://supabase.com/docs/guides/auth
 - shadcn/ui v3: https://v0.dev/docs (Radix-based)
 - Recharts: https://recharts.org/en-US/api
 - Resend: https://resend.com/docs/api-reference
-- Vercel Cron: https://vercel.com/docs/cron-jobs
 - OpenAI Embeddings: https://platform.openai.com/docs/guides/embeddings
 - Anthropic Streaming: https://docs.anthropic.com/en/api/messages-streaming
+- Vitest: https://vitest.dev
+- Playwright: https://playwright.dev
 - text-embedding-3-small: 1536 dims, melhor custo-beneficio para RAG em portugues

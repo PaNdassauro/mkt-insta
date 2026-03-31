@@ -19,20 +19,41 @@ O Instagram da Welcome Weddings (@welcomeweddings) e um canal estrategico de ger
 
 ## 2. O que e o DashIG
 
-DashIG e um dashboard interno com dois modulos principais:
+DashIG e um dashboard interno completo para gestao de Instagram, com os seguintes modulos:
 
-### 2.1 Analytics (implementado — fases 1 a 5 concluidas)
+### 2.1 Analytics (Sprints 1-5)
 Resolve tres problemas concretos:
 1. **Historico limitado**: Instagram nativo guarda 90 dias. DashIG guarda indefinidamente via Supabase.
 2. **Falta de inteligencia**: Insights nativo nao calcula scores, nao sugere horarios, nao classifica conteudo.
 3. **Sem visao comparativa**: Sem benchmarking de concorrentes nem comparativo entre formatos.
 
-### 2.2 Campaign Studio (implementado — fases A a D concluidas)
+### 2.2 Campaign Studio (Sprints 1-5 + 6-9)
 Resolve o problema de producao de campanhas:
 - Time gasta horas planejando campanhas manualmente, sem acesso facil ao historico de performance
 - Output e generico — nao reflete o que realmente funciona no perfil da Welcome Weddings
 - Campaign Studio entrega uma campanha estruturada e embasada em dados em minutos
 - O analista foca em revisar e refinar, nao em criar do zero
+
+### 2.3 Engagement (Sprints 2-3)
+Gestao unificada de interacoes:
+- **Comentarios**: sync, reply, hide, delete, classificacao de sentimento
+- **Mensagens (DMs)**: inbox com chat view, envio de respostas, auto-reply por keyword
+- **Mencoes**: rastreamento de tags da marca, galeria UGC
+
+### 2.4 Funcionalidades adicionais (Sprints 6-12)
+- **Knowledge Base**: documentos indexados (PDFs + site) para RAG
+- **Calendario Editorial**: 3 visoes (mensal, Kanban, editor individual) com publicacao direta
+- **Motor de Recomendacoes**: sugestoes acionaveis baseadas em dados historicos
+- **Monitoramento de Concorrentes**: sync automatico semanal via Meta Graph API
+- **Hashtag Monitor**: monitoramento de hashtags (top/recent media)
+- **Roles de Usuario**: admin/editor/viewer com controle de acesso
+- **Log de Atividades**: registro de acoes do sistema
+- **Saude do Sistema**: dashboard com status do token, syncs, DB stats, storage
+- **Notification Badges**: badges em tempo real para comentarios, campanhas, mensagens
+- **Designer Brief**: endpoint para gerar brief visual de campanha
+- **Multi-account (preparacao)**: tabela e CRUD de contas Instagram
+- **Alertas Telegram**: notificacoes configuradas via Telegram Bot API
+- **Logging Estruturado**: JSON em producao (Vercel Log Drain), ANSI em dev
 
 ---
 
@@ -42,8 +63,8 @@ O sistema possui tres papeis com controle de acesso (tabela `user_roles`):
 
 | Role | Permissoes |
 |---|---|
-| **admin** | Acesso total. Gerencia usuarios, configura sistema, exporta dados |
-| **editor** | Cria e edita campanhas, agenda posts, gerencia calendario e comentarios |
+| **admin** | Acesso total. Gerencia usuarios, configura sistema, exporta dados, gerencia contas |
+| **editor** | Cria e edita campanhas, agenda posts, gerencia calendario, comentarios e mensagens |
 | **viewer** | Acesso somente leitura a dashboards e relatorios |
 
 | Perfil | Role | Necessidade |
@@ -159,8 +180,9 @@ Cada campanha contem:
 | **Edicao nao-destrutiva** | Editar `caption_edited` sem sobrescrever `caption` (output original preservado) |
 | **Campaign Editor** | Interface de revisao e edicao da campanha gerada |
 | **Agendamento** | Envio dos posts aprovados para o Calendario Editorial do DashIG |
+| **Designer Brief** | Endpoint dedicado para extrair briefs visuais formatados de uma campanha |
 
-### 5.6 Funcionalidades adicionais do Campaign Studio
+### 5.6 Funcionalidades do Campaign Studio
 
 | Funcionalidade | Descricao |
 |---|---|
@@ -168,21 +190,9 @@ Cada campanha contem:
 | **Comparacao de campanhas** | Pagina dedicada para comparar campanhas lado a lado por tags, com metricas agregadas e radar chart (Recharts) |
 | **Agendamento no calendario** | Posts aprovados de uma campanha sao enviados diretamente para o calendario editorial via `/api/campaigns/[id]/schedule` |
 | **Activity logging** | Eventos de campanha (criacao, aprovacao, agendamento) sao registrados na tabela `activity_log` |
-
-### 5.7 Funcionalidades de Analytics avancado (Sprints 6-9)
-
-| Funcionalidade | Descricao |
-|---|---|
-| **Grafico de sentimento** | Distribuicao semanal de sentimento dos comentarios (positive/neutral/negative/question) nos ultimos 90 dias |
-| **Sugestao inteligente de hashtags** | Endpoint que sugere top 15 hashtags com base na caption e performance historica (reach x engagement) |
-| **Notificacoes Telegram** | Bot do Telegram envia alertas configurados (ex.: sync concluido, erros). Configuravel via Settings |
-| **Logging estruturado** | Modulo `lib/logger.ts` com JSON em producao (compativel com Vercel Log Drain) e formato legivel em dev |
-| **Roles de usuario** | Sistema de papeis (admin/editor/viewer) com tabela `user_roles` e funcao `get_user_role()`. Admin gerencia usuarios em Settings > Usuarios |
-| **Log de atividades** | Tabela `activity_log` com registro de acoes (login, criacao, aprovacao, etc.) e pagina de consulta em Settings > Atividades |
-| **Motor de recomendacoes** | Endpoint `/api/instagram/recommendations` analisa dados historicos e retorna 3-5 recomendacoes acionaveis (timing, formato, gaps, temas, tendencias) |
-| **Monitoramento automatico de concorrentes** | Cron semanal (`sync-competitors`) busca dados publicos de concorrentes com `ig_user_id` via Meta Graph API |
-| **Dashboard de saude do sistema** | Pagina Settings > Sistema com status do token Meta, ultimos syncs, cron jobs, estatisticas do banco e storage |
-| **Exportacao administrativa** | Endpoint `/api/admin/export-all` exporta dados completos (posts, reels, stories, campanhas, comentarios, snapshots) em CSV |
+| **Designer Brief** | Endpoint `/api/campaigns/[id]/brief` gera brief visual formatado para o designer |
+| **Vinculacao de midias** | Endpoint `/api/campaigns/[id]/media` permite vincular midias reais publicadas a campanhas |
+| **Relatorio de campanha** | Pagina `/campaigns/[id]/report` exibe relatorio parcial ou final da campanha |
 
 ---
 
@@ -198,9 +208,10 @@ Cada campanha contem:
 | Storage | Supabase Storage (bucket `story-media`) |
 | Email | Resend |
 | Embeddings | OpenAI text-embedding-3-small (server-only) |
-| Geracao de campanhas | Anthropic Claude claude-opus-4-5 (server-only) |
+| Geracao de campanhas | Anthropic Claude claude-sonnet-4-20250514 (server-only) |
+| Notificacoes | Telegram Bot API |
 
-### 6.2 Cron jobs (pg_cron)
+### 6.2 Cron jobs (pg_cron) — 7 jobs
 
 | Job | Schedule | Endpoint |
 |---|---|---|
@@ -212,6 +223,16 @@ Cada campanha contem:
 | `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | POST /api/instagram/auto-publish |
 | `dashig-sync-competitors` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-competitors |
 
+### 6.3 Numeros do projeto (marco/2026)
+
+| Metrica | Valor |
+|---|---|
+| Migrations | 21 (001 a 021) |
+| API routes (route.ts) | 52 |
+| Pages (page.tsx) | 29 |
+| Unit tests (vitest) | 11 arquivos |
+| E2E tests (Playwright) | 5 specs |
+
 ---
 
 ## 7. Regras de negocio criticas
@@ -222,23 +243,72 @@ Cada campanha contem:
 4. **Views > Plays nos Reels** — desde abril/2025.
 5. **QEI calculado no frontend** — runtime para ajuste de pesos.
 6. **Content Score em batch** — 4 queries por tier no sync, nunca N queries individuais.
-7. **Auth centralizada** — `validateCronSecret()` de `lib/auth.ts` em toda rota de sync e knowledge.
+7. **Auth centralizada** — `validateCronSecret()` para cron jobs, `validateDashboardRequest()` para rotas do dashboard, ambos de `lib/auth.ts`.
 8. **Audiencia em %** — API retorna absolutos, convertemos para % antes de salvar.
 9. **IA gera e agenda, nao publica diretamente** — a IA gera campanhas e agenda no calendario. A publicacao e manual ou via auto-publish (opt-in por entrada, cron a cada 30 min).
 10. **Edicao nao-destrutiva** — `caption_edited`/`hashtags_edited` preservam o output original da IA.
 11. **Documentos inativos nao alimentam a IA** — `is_active = FALSE` desativa sem deletar.
 12. **API Keys de IA sao server-only** — `OPENAI_API_KEY` e `ANTHROPIC_API_KEY` nunca expostos no client.
+13. **Logging estruturado** — usar `logger` de `lib/logger.ts`, nunca `console.log` direto.
+14. **Respostas de API padronizadas** — usar `apiSuccess`/`apiError` de `lib/api-response.ts`.
 
 ---
 
 ## 8. O que NAO esta no escopo
 
-- ~~Publicacao automatica via API~~ (IMPLEMENTADA — ver ARCHITECTURE.md secao 14)
 - Analytics de Instagram Ads (Meta Ads API — escopo futuro)
-- Multi-conta (apenas @welcomeweddings)
+- Multi-conta completo (preparacao feita: tabela `instagram_accounts` + CRUD + hook `useCurrentAccount`, mas filtro de dados por conta ativa ainda nao implementado)
 - App mobile
 - Integracao com outras redes sociais (TikTok, LinkedIn — escopo futuro)
-- ~~Scraping automatico de concorrentes~~ (IMPLEMENTADO — sync semanal via cron para concorrentes com ig_user_id)
 - Geracao automatica de imagens/videos (apenas briefs textuais para o designer)
-- Integracao com Canva API (previsto para versao futura)
+- Integracao completa com Canva API (stub em `lib/canva-client.ts`, previsto para versao futura)
 - Aprovacao em multiplos niveis hierarquicos (workflow complexo — escopo futuro)
+
+---
+
+## 9. Sprints concluidos
+
+### Sprints 1-5: Analytics + Campaign Studio base
+- Meta App + Long-Lived Token + 9 tabelas iniciais
+- Overview, Posts, Reels, Stories, Growth, Audience, Hashtags
+- Concorrentes (CRUD), Relatorio mensal (Resend), Calendario Editorial
+- Campaign Studio: RAG (pgvector), Geracao (Claude streaming), Editor, Agendamento
+- Publicacao direta no Instagram (IMAGE, CAROUSEL, REEL) + auto-publish
+- Kanban view, editor de entrada com preview, tags e comparacao de campanhas
+- DMs + Webhooks: inbox, envio, auto-reply por keyword
+- Comentarios (sync, reply, hide, delete, sentimento) + Mencoes (tags, UGC)
+- Hashtag monitoring (top/recent media)
+- Supabase Auth (login, sessao, middleware) + Dark mode + Unit tests (vitest)
+
+### Sprint 6: Sentimento, Hashtag Suggest, Telegram
+- Grafico de distribuicao de sentimento (comentarios, ultimos 90 dias)
+- Sugestao inteligente de hashtags por caption
+- Integracao Telegram (alertas via bot)
+- Logging estruturado (`lib/logger.ts`)
+
+### Sprint 7: Roles, Activity Log, RLS
+- Tabela `user_roles` (admin/editor/viewer) + funcao SQL `get_user_role()`
+- `lib/roles.ts` + API `/api/settings/users` (CRUD, admin only)
+- Tabela `activity_log` + `lib/activity.ts` + pagina de consulta
+- RLS policies em todas as tabelas (migration 014)
+
+### Sprint 8: Recomendacoes, Competidores, Saude
+- Motor de recomendacoes (`/api/instagram/recommendations`)
+- Sync automatico de concorrentes via cron semanal
+- Dashboard de saude do sistema (`/settings/system`)
+
+### Sprint 9: Exportacao, Multi-account Prep, Polish
+- Exportacao administrativa completa (`/api/admin/export-all`)
+- Tabela `instagram_accounts` (preparacao multi-conta)
+- API `/api/settings/accounts` (CRUD contas)
+- Auth em todas as rotas restantes
+
+### Sprints 10-12: Notification Badges, Designer Brief, E2E Tests, Polish
+- Notification badges (`/api/notifications/badges` + `useNotificationBadges`)
+- Designer brief endpoint (`/api/campaigns/[id]/brief`)
+- Session check hook (`useSessionCheck`)
+- Current account hook (`useCurrentAccount`)
+- ErrorBoundary component
+- Messages enrich endpoint (`/api/instagram/messages/enrich`)
+- E2E tests (Playwright): auth, calendar, campaigns, dashboard, settings
+- Canva client stub (`lib/canva-client.ts`)
