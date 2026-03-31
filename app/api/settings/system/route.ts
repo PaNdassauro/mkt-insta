@@ -105,6 +105,74 @@ export async function GET(request: Request) {
       storyMediaFiles: mediaFilesCount ?? 0,
     }
 
+    // --- Performance: sync history (last 7 snapshots) ---
+    const { data: syncHistoryData } = await supabase
+      .from('instagram_account_snapshots')
+      .select('date, created_at')
+      .order('date', { ascending: false })
+      .limit(7)
+
+    const syncHistory = (syncHistoryData ?? []).map((s) => ({
+      date: s.date,
+      createdAt: s.created_at,
+      success: true,
+    }))
+
+    // --- Performance: storage usage ---
+    const [docsCount, chunksCount] = await Promise.all([
+      supabase.from('knowledge_documents').select('id', { count: 'exact', head: true }),
+      supabase.from('document_chunks').select('id', { count: 'exact', head: true }),
+    ])
+
+    const storageUsage = {
+      storyMediaFiles: mediaFilesCount ?? 0,
+      totalCampaigns: dbStats.campaigns,
+      totalDocuments: docsCount.count ?? 0,
+      totalChunks: chunksCount.count ?? 0,
+    }
+
+    // --- Performance: API response times (placeholder) ---
+    const apiResponseTimes: Array<{ endpoint: string; avgMs: number | null }> = [
+      { endpoint: '/api/instagram/sync', avgMs: null },
+      { endpoint: '/api/instagram/posts', avgMs: null },
+      { endpoint: '/api/instagram/reels', avgMs: null },
+      { endpoint: '/api/instagram/stories', avgMs: null },
+    ]
+
+    // --- Performance: Meta API quota (placeholder) ---
+    const metaApiQuota = {
+      note: 'A Meta Graph API possui limite de 200 chamadas por hora por usuario. O DashIG faz aproximadamente 5-10 chamadas por sync. Monitore em https://developers.facebook.com/tools/explorer/',
+      monitorUrl: 'https://developers.facebook.com/tools/explorer/',
+      estimatedCallsPerSync: 10,
+      hourlyLimit: 200,
+    }
+
+    const performance = {
+      apiResponseTimes,
+      syncHistory,
+      storageUsage,
+      metaApiQuota,
+    }
+
+    // --- Report info ---
+    const reportEmailTo = process.env.REPORT_EMAIL_TO || process.env.REPORT_RECIPIENT_EMAIL || null
+    const reportEmailConfigured = Boolean(reportEmailTo && process.env.RESEND_API_KEY)
+
+    // Find last snapshot on day 1 of any month (approximation for last report date)
+    const { data: lastReportSnap } = await supabase
+      .from('instagram_account_snapshots')
+      .select('date')
+      .like('date', '%-01')
+      .order('date', { ascending: false })
+      .limit(1)
+      .single()
+
+    const report = {
+      lastReportDate: lastReportSnap?.date ?? null,
+      emailConfigured: reportEmailConfigured,
+      emailTo: reportEmailTo,
+    }
+
     logger.info('System health data fetched', 'SystemHealth')
 
     return apiSuccess({
@@ -114,6 +182,8 @@ export async function GET(request: Request) {
       telegram: { configured: telegramConfigured },
       dbStats,
       storageInfo,
+      performance,
+      report,
     })
   } catch (err) {
     logger.error('System health error', 'SystemHealth', { error: err as Error })

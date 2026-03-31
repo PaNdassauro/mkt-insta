@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ import { createBrowserSupabaseClient } from '@/lib/supabase-browser'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useSessionCheck } from '@/hooks/useSessionCheck'
 import { useNotificationBadges } from '@/hooks/useNotificationBadges'
+import { useCurrentAccount } from '@/hooks/useCurrentAccount'
 
 interface NavGroup {
   label: string
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
     label: 'Administracao',
     items: [
       { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
+      { label: 'Contas', href: '/dashboard/instagram/settings/accounts', icon: '📱' },
       { label: 'Usuarios', href: '/dashboard/instagram/settings/users', icon: '🔐' },
       { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: '📜' },
       { label: 'Sistema', href: '/dashboard/instagram/settings/system', icon: '🖥' },
@@ -86,8 +88,24 @@ export default function InstagramLayout({
   const router = useRouter()
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const accountDropdownRef = useRef<HTMLDivElement>(null)
+
   useSessionCheck()
   const badges = useNotificationBadges()
+  const { accounts, currentAccount, setCurrentAccount, loading: accountsLoading } = useCurrentAccount()
+  const activeAccounts = accounts.filter((a) => a.is_active)
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target as Node)) {
+        setAccountDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Map nav item labels to badge counts
   function getBadgeForItem(label: string): { count: number; type: 'count' | 'dot' } | null {
@@ -202,12 +220,89 @@ export default function InstagramLayout({
           })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer — Account Selector */}
         <div className="border-t border-border/50 p-4 space-y-2">
-          <div className="rounded-lg bg-muted/50 p-3">
-            <p className="text-xs font-medium text-foreground">@welcomeweddings</p>
-            <p className="text-[11px] text-muted-foreground">Ultima sync: hoje</p>
+          <div className="relative" ref={accountDropdownRef}>
+            <button
+              onClick={() => activeAccounts.length > 1 && setAccountDropdownOpen((v) => !v)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-lg bg-muted/50 p-3 text-left transition-colors',
+                activeAccounts.length > 1 && 'hover:bg-muted cursor-pointer'
+              )}
+              aria-haspopup={activeAccounts.length > 1 ? 'listbox' : undefined}
+              aria-expanded={accountDropdownOpen}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                IG
+              </div>
+              <div className="flex-1 min-w-0">
+                {accountsLoading ? (
+                  <>
+                    <p className="text-xs font-medium text-foreground">Carregando...</p>
+                  </>
+                ) : currentAccount ? (
+                  <>
+                    <p className="text-xs font-medium text-foreground truncate">{currentAccount.label}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {currentAccount.username ? `@${currentAccount.username}` : currentAccount.ig_user_id}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-foreground">Nenhuma conta</p>
+                    <p className="text-[11px] text-muted-foreground">Configure em Contas</p>
+                  </>
+                )}
+              </div>
+              {activeAccounts.length > 1 && (
+                <span className="shrink-0 bg-primary/10 text-primary text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center">
+                  {activeAccounts.length}
+                </span>
+              )}
+              {activeAccounts.length > 1 && (
+                <span className={cn('text-[10px] text-muted-foreground transition-transform', accountDropdownOpen ? 'rotate-180' : '')}>
+                  ▼
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown */}
+            {accountDropdownOpen && activeAccounts.length > 1 && (
+              <div
+                className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-border bg-card shadow-lg z-50 max-h-48 overflow-y-auto"
+                role="listbox"
+                aria-label="Selecionar conta Instagram"
+              >
+                {activeAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    role="option"
+                    aria-selected={account.id === currentAccount?.id}
+                    onClick={() => {
+                      setCurrentAccount(account.id)
+                      setAccountDropdownOpen(false)
+                      window.location.reload()
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted',
+                      account.id === currentAccount?.id && 'bg-primary/5'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{account.label}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {account.username ? `@${account.username}` : account.ig_user_id}
+                      </p>
+                    </div>
+                    {account.id === currentAccount?.id && (
+                      <span className="text-primary text-xs">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

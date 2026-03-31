@@ -776,6 +776,77 @@ export default function CalendarEntryEditorPage() {
             </CardContent>
           </Card>
 
+          {/* Publish Preview */}
+          {entry.status === 'APPROVED' && hasMedia && (
+            <Card className="border-0 shadow-sm border-l-4 border-l-emerald-500">
+              <CardContent className="p-4 space-y-3">
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  Pronto para publicar
+                </p>
+
+                {/* Media thumbnail */}
+                {form.content_type === 'CAROUSEL' && form.carousel_urls.some(Boolean) ? (
+                  <div className="flex gap-1 overflow-x-auto">
+                    {form.carousel_urls.filter(Boolean).map((url, i) => (
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`Imagem ${i + 1}`}
+                        className="w-16 h-16 rounded object-cover shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ))}
+                  </div>
+                ) : form.media_url ? (
+                  <img
+                    src={form.content_type === 'REEL' && form.cover_url ? form.cover_url : form.media_url}
+                    alt="Preview da midia"
+                    className="w-full h-32 rounded-lg object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : null}
+
+                {/* Caption preview */}
+                {form.caption_draft && (
+                  <p className="text-xs text-muted-foreground line-clamp-4">
+                    {form.caption_draft.length > 200
+                      ? form.caption_draft.slice(0, 200) + '...'
+                      : form.caption_draft}
+                  </p>
+                )}
+
+                {/* Hashtags */}
+                {form.hashtags_input && (
+                  <p className="text-xs text-primary/70">
+                    {form.hashtags_input
+                      .split(',')
+                      .map((h) => h.trim())
+                      .filter(Boolean)
+                      .map((h) => `#${h.replace(/^#/, '')}`)
+                      .join(' ')}
+                  </p>
+                )}
+
+                {/* Content type + scheduled date */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="text-[10px] bg-muted/60 border-0">
+                    {typeCfg?.icon} {typeCfg?.label}
+                  </Badge>
+                  {form.scheduled_for && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(form.scheduled_for).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Actions */}
           <Card className="border-0 shadow-sm">
             <CardContent className="p-4 space-y-2">

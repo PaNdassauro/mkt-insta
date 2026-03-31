@@ -25,30 +25,41 @@ export async function POST(request: Request) {
     const authError = validateCronSecret(request)
     if (authError) return authError
 
-    const resendKey = process.env.RESEND_API_KEY
-    const recipientEmail = process.env.REPORT_RECIPIENT_EMAIL
-
-    if (!resendKey || !recipientEmail) {
-      return apiError('RESEND_API_KEY and REPORT_RECIPIENT_EMAIL required', 500)
-    }
-
     const report = await generateMonthlyReport()
     const html = reportToHtml(report)
+    const monthLabel = `${report.month} ${report.year}`
 
-    const resend = new Resend(resendKey)
-    const { error } = await resend.emails.send({
-      from: 'DashIG <onboarding@resend.dev>',
-      to: recipientEmail,
-      subject: `Relatorio Instagram — ${report.month} ${report.year} | @welcomeweddings`,
-      html,
-    })
+    const resendKey = process.env.RESEND_API_KEY
+    const recipientEmail = process.env.REPORT_EMAIL_TO || process.env.REPORT_RECIPIENT_EMAIL
 
-    if (error) throw new Error(JSON.stringify(error))
+    if (recipientEmail && resendKey) {
+      const resend = new Resend(resendKey)
+      const { error } = await resend.emails.send({
+        from: 'DashIG <onboarding@resend.dev>',
+        to: recipientEmail,
+        subject: `Relatorio Mensal DashIG - ${monthLabel} | @welcomeweddings`,
+        html,
+      })
+
+      if (error) throw new Error(JSON.stringify(error))
+
+      logger.info(`Relatorio mensal enviado para ${recipientEmail}`, 'DashIG Report')
+
+      return apiSuccess({
+        success: true,
+        sent_to: recipientEmail,
+        month: monthLabel,
+      })
+    }
+
+    // Sem email configurado — apenas gera o HTML
+    logger.info('Relatorio mensal gerado (sem envio de email — REPORT_EMAIL_TO ou RESEND_API_KEY nao configurados)', 'DashIG Report')
 
     return apiSuccess({
       success: true,
-      sent_to: recipientEmail,
-      month: `${report.month} ${report.year}`,
+      sent_to: null,
+      month: monthLabel,
+      note: 'Email nao enviado. Configure REPORT_EMAIL_TO e RESEND_API_KEY para envio automatico.',
     })
   } catch (err) {
     logger.error('POST error', 'DashIG Report', { error: err as Error })

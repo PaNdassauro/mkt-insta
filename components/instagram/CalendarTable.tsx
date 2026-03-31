@@ -28,6 +28,7 @@ export default function CalendarTable() {
   const [entries, setEntries] = useState<EditorialEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | CalendarStatus>('all')
+  const [publishingId, setPublishingId] = useState<string | null>(null)
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -68,6 +69,29 @@ export default function CalendarTable() {
       })
       await fetchEntries()
     } catch { toast.error('Erro ao atualizar') }
+  }
+
+  async function publishEntry(id: string) {
+    if (!confirm('Publicar este conteudo agora no Instagram?')) return
+    setPublishingId(id)
+    try {
+      const res = await fetch('/api/instagram/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendarEntryId: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(`Erro ao publicar: ${data.error}`)
+      } else {
+        toast.success('Publicado no Instagram!')
+      }
+      await fetchEntries()
+    } catch {
+      toast.error('Erro de conexao ao publicar')
+    } finally {
+      setPublishingId(null)
+    }
   }
 
   function changeMonth(delta: number) {
@@ -210,6 +234,17 @@ export default function CalendarTable() {
                               onClick={() => updateStatus(entry.id, 'DRAFT')}
                             >
                               Rascunho
+                            </Button>
+                          )}
+                          {entry.status === 'APPROVED' && (entry.media_url || (entry.carousel_urls && entry.carousel_urls.length > 0)) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-emerald-600"
+                              onClick={() => publishEntry(entry.id)}
+                              disabled={publishingId === entry.id}
+                            >
+                              {publishingId === entry.id ? 'Publicando...' : 'Publicar'}
                             </Button>
                           )}
                           <Button

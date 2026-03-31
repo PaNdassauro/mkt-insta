@@ -167,6 +167,18 @@ export default function CampaignEditorPage() {
             </Button>
           )}
 
+          {approvedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              title="Em breve — integracao com Canva"
+              className="opacity-60 cursor-not-allowed"
+            >
+              Gerar Assets (Canva)
+            </Button>
+          )}
+
           <Link
             href={`/dashboard/instagram/campaigns/${campaignId}/report`}
             className="text-sm text-primary hover:underline"

@@ -20,6 +20,39 @@ interface CronJob {
   frequencia: string
 }
 
+interface SyncHistoryEntry {
+  date: string
+  createdAt: string
+  success: boolean
+}
+
+interface StorageUsage {
+  storyMediaFiles: number
+  totalCampaigns: number
+  totalDocuments: number
+  totalChunks: number
+}
+
+interface MetaApiQuota {
+  note: string
+  monitorUrl: string
+  estimatedCallsPerSync: number
+  hourlyLimit: number
+}
+
+interface PerformanceData {
+  apiResponseTimes: Array<{ endpoint: string; avgMs: number | null }>
+  syncHistory: SyncHistoryEntry[]
+  storageUsage: StorageUsage
+  metaApiQuota: MetaApiQuota
+}
+
+interface ReportInfo {
+  lastReportDate: string | null
+  emailConfigured: boolean
+  emailTo: string | null
+}
+
 interface SystemHealthData {
   token: { status: string; daysLeft: number }
   lastSyncs: SyncInfo[]
@@ -33,6 +66,8 @@ interface SystemHealthData {
     comments: number
   }
   storageInfo: { storyMediaFiles: number }
+  performance: PerformanceData
+  report: ReportInfo
 }
 
 function StatusDot({ color }: { color: 'green' | 'yellow' | 'red' }) {
@@ -397,7 +432,118 @@ export default function SystemHealthPage() {
         </CardContent>
       </Card>
 
-      {/* Section 5: Acoes Rapidas */}
+      {/* Section 5: Metricas */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Metricas</h2>
+
+          {/* Historico de Syncs */}
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Historico de Syncs</h3>
+          {data?.performance.syncHistory && data.performance.syncHistory.length > 0 ? (
+            <div className="space-y-2 mb-6">
+              {data.performance.syncHistory.map((entry) => (
+                <div
+                  key={entry.date}
+                  className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <StatusDot color={entry.success ? 'green' : 'red'} />
+                    <span className="text-sm">{entry.date}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateTime(entry.createdAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-6">Nenhum historico de sync disponivel.</p>
+          )}
+
+          {/* Uso do Armazenamento */}
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Uso do Armazenamento</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
+            {[
+              { label: 'Stories com Midia', value: data?.performance.storageUsage.storyMediaFiles ?? 0 },
+              { label: 'Campanhas Totais', value: data?.performance.storageUsage.totalCampaigns ?? 0 },
+              { label: 'Documentos Indexados', value: data?.performance.storageUsage.totalDocuments ?? 0 },
+              { label: 'Chunks de Embedding', value: data?.performance.storageUsage.totalChunks ?? 0 },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-lg bg-muted/50 p-4 text-center"
+              >
+                <p className="text-2xl font-bold">{stat.value.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Meta API */}
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Meta API</h3>
+          <div className="rounded-lg bg-muted/50 p-4">
+            <p className="text-sm mb-2">
+              {data?.performance.metaApiQuota.note ?? 'Informacoes de quota indisponiveis.'}
+            </p>
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-2">
+              <span>Limite por hora: <strong className="text-foreground">{data?.performance.metaApiQuota.hourlyLimit ?? '-'}</strong></span>
+              <span>Chamadas por sync: <strong className="text-foreground">~{data?.performance.metaApiQuota.estimatedCallsPerSync ?? '-'}</strong></span>
+            </div>
+            {data?.performance.metaApiQuota.monitorUrl && (
+              <a
+                href={data.performance.metaApiQuota.monitorUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary underline mt-2 inline-block"
+              >
+                Abrir Meta Developer Dashboard
+              </a>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 6: Relatorio Mensal */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Relatorio Mensal</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Ultimo relatorio</span>
+              <span className="text-sm text-muted-foreground">
+                {data?.report.lastReportDate
+                  ? new Date(data.report.lastReportDate + 'T00:00:00').toLocaleDateString('pt-BR')
+                  : 'Nenhum gerado'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Email</span>
+              <Badge
+                className={
+                  data?.report.emailConfigured
+                    ? 'bg-green-50 text-green-600 border-0 dark:bg-green-950 dark:text-green-400'
+                    : 'bg-red-50 text-red-600 border-0 dark:bg-red-950 dark:text-red-400'
+                }
+              >
+                {data?.report.emailConfigured ? 'Configurado' : 'Nao configurado'}
+              </Badge>
+            </div>
+            {data?.report.emailTo && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Destinatario</span>
+                <span className="text-sm text-muted-foreground">{data.report.emailTo}</span>
+              </div>
+            )}
+            {!data?.report.emailConfigured && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Configure as variaveis REPORT_EMAIL_TO e RESEND_API_KEY para envio automatico do relatorio mensal.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 7: Acoes Rapidas */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4">Acoes Rapidas</h2>
