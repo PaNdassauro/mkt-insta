@@ -92,6 +92,29 @@ async function processMessageEvent(
 
   if (!conversation) return
 
+  // Fetch username if missing
+  if (!conversation.username) {
+    try {
+      const token = process.env.META_ACCESS_TOKEN
+      if (token) {
+        const profileRes = await fetch(
+          `https://graph.instagram.com/v21.0/${igUserId}?fields=username&access_token=${token}`
+        )
+        if (profileRes.ok) {
+          const profile = await profileRes.json()
+          if (profile.username) {
+            await supabase
+              .from('instagram_conversations')
+              .update({ username: profile.username })
+              .eq('id', conversation.id)
+          }
+        }
+      }
+    } catch {
+      // Non-critical — username will be filled on next message
+    }
+  }
+
   // Increment unread
   await supabase
     .from('instagram_conversations')

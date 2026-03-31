@@ -1,11 +1,15 @@
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
  * GET /api/campaigns
  * Lista todas as campanhas com contagem de posts.
  */
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (request: Request) => {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   const supabase = createServerSupabaseClient()
 
   const { data, error } = await supabase

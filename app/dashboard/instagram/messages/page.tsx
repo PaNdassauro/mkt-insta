@@ -124,13 +124,34 @@ export default function MessagesPage() {
             DMs do Instagram — responda casais e gerencie auto-replies
           </p>
         </div>
-        <Button
-          size="sm"
-          variant={showRules ? 'default' : 'outline'}
-          onClick={() => setShowRules(!showRules)}
-        >
-          {showRules ? 'Ver Conversas' : 'Auto-Reply Rules'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/instagram/messages/enrich', { method: 'POST' })
+                if (res.ok) {
+                  const data = await res.json()
+                  toast.success(`${data.enriched} nomes atualizados`)
+                  await fetchConversations()
+                } else {
+                  toast.error('Erro ao buscar nomes')
+                }
+              } catch { toast.error('Erro de conexao') }
+            }}
+          >
+            Atualizar nomes
+          </Button>
+          <Button
+            size="sm"
+            variant={showRules ? 'default' : 'outline'}
+            onClick={() => setShowRules(!showRules)}
+          >
+            {showRules ? 'Ver Conversas' : 'Auto-Reply Rules'}
+          </Button>
+        </div>
       </div>
 
       {showRules ? (

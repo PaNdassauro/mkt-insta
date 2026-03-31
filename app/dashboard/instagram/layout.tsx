@@ -23,6 +23,7 @@ const navGroups: NavGroup[] = [
       { label: 'Crescimento', href: '/dashboard/instagram/growth', icon: '📈' },
       { label: 'Audiencia', href: '/dashboard/instagram/audience', icon: '👥' },
       { label: 'Hashtags', href: '/dashboard/instagram/hashtags', icon: '🏷' },
+      { label: 'Hashtag Monitor', href: '/dashboard/instagram/hashtag-monitor', icon: '🔍' },
       { label: 'Concorrentes', href: '/dashboard/instagram/competitors', icon: '🏆' },
       { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
     ],
@@ -54,17 +55,22 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-// Flat list for mobile (only main items, no admin sub-pages)
+// Flat list for mobile — core features accessible
 const mobileNavItems = [
   { label: 'Inicio', href: '/dashboard/instagram', icon: '📊' },
   { label: 'Posts', href: '/dashboard/instagram/posts', icon: '📸' },
   { label: 'Reels', href: '/dashboard/instagram/reels', icon: '🎬' },
   { label: 'Stories', href: '/dashboard/instagram/stories', icon: '⏳' },
   { label: 'Crescimento', href: '/dashboard/instagram/growth', icon: '📈' },
+  { label: 'Audiencia', href: '/dashboard/instagram/audience', icon: '👥' },
+  { label: 'Hashtags', href: '/dashboard/instagram/hashtags', icon: '🏷' },
+  { label: 'Concorrentes', href: '/dashboard/instagram/competitors', icon: '🏆' },
   { label: 'Campanhas', href: '/dashboard/instagram/campaigns', icon: '🚀' },
   { label: 'Calendario', href: '/dashboard/instagram/calendar', icon: '📅' },
   { label: 'Comentarios', href: '/dashboard/instagram/comments', icon: '💭' },
   { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: '💬' },
+  { label: 'Mencoes', href: '/dashboard/instagram/mentions', icon: '📷' },
+  { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
   { label: 'Config', href: '/dashboard/instagram/settings', icon: '⚙️' },
 ]
 
