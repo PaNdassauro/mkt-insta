@@ -11,8 +11,10 @@ import RecommendationWidget from '@/components/instagram/RecommendationWidget'
 import { useInstagramMetrics } from '@/hooks/useInstagramMetrics'
 import { usePostPerformance } from '@/hooks/usePostPerformance'
 import { useReelPerformance } from '@/hooks/useReelPerformance'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { formatNumber, formatPercent, calcQEI } from '@/lib/analytics'
 import { CONTENT_SCORE_COLORS, CONTENT_SCORE_LABELS } from '@/lib/constants'
 import type { InstagramPost, AudienceSnapshot } from '@/types/instagram'
@@ -82,15 +84,59 @@ export default function OverviewPage() {
     .sort((a, b) => (b.engagement_rate ?? 0) - (a.engagement_rate ?? 0))
     .slice(0, 5)
 
+  const isAllLoading = metricsLoading || postsLoading
+  const hasNoData = !isAllLoading && !current && posts.length === 0
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Visao Geral</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Visao Geral</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Performance do Instagram — @welcomeweddings
         </p>
       </div>
+
+      {/* Welcome/Setup guide when no data */}
+      {hasNoData && (
+        <Card className="border-2 border-dashed border-primary/30 shadow-sm">
+          <CardContent className="py-10 text-center">
+            <p className="text-3xl mb-3">🚀</p>
+            <h2 className="text-lg font-semibold mb-1">Bem-vindo ao DashIG!</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Configure o sync para comecar a coletar dados do Instagram.
+            </p>
+            <div className="mx-auto max-w-sm space-y-3 text-left">
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                <span className="text-lg">{current ? '✅' : '⬜'}</span>
+                <div>
+                  <p className="text-sm font-medium">Sync configurado</p>
+                  <p className="text-xs text-muted-foreground">Execute o primeiro sync via API</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                <span className="text-lg">{snapshots.length > 0 ? '✅' : '⬜'}</span>
+                <div>
+                  <p className="text-sm font-medium">Token valido</p>
+                  <p className="text-xs text-muted-foreground">Token do Instagram Graph API ativo</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                <span className="text-lg">{posts.length > 0 ? '✅' : '⬜'}</span>
+                <div>
+                  <p className="text-sm font-medium">Dados coletados</p>
+                  <p className="text-xs text-muted-foreground">Posts e metricas sincronizados</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6">
+              <Link href="/dashboard/instagram/campaigns/new">
+                <Button size="sm">Criar primeira campanha</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPIs */}
       <OverviewKPIs
@@ -104,7 +150,7 @@ export default function OverviewPage() {
       <RecommendationWidget />
 
       {/* Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <GrowthChart data={snapshots} isLoading={metricsLoading} />
         <EngagementChart posts={posts} isLoading={postsLoading} />
       </div>
@@ -142,7 +188,11 @@ export default function OverviewPage() {
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">Nenhum post disponivel.</p>
+            <div className="py-8 text-center">
+              <p className="text-2xl mb-2">📊</p>
+              <p className="text-sm text-muted-foreground">Nenhum post disponivel ainda.</p>
+              <p className="text-xs text-muted-foreground mt-1">Sincronize os dados do Instagram para ver o ranking de posts.</p>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -126,10 +126,10 @@ export default function CampaignEditorPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{campaign.title}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight break-words">{campaign.title}</h1>
             <Badge variant="secondary" className={`text-xs ${statusCfg.className}`}>
               {statusCfg.label}
             </Badge>
@@ -139,7 +139,7 @@ export default function CampaignEditorPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {/* Schedule button — only when approved */}
           {campaign.status === 'APPROVED' && (
             <ScheduleButton
@@ -155,6 +155,16 @@ export default function CampaignEditorPage() {
             <div className="flex items-center gap-2 text-sm text-indigo-600">
               <span>Campanha agendada no calendario editorial</span>
             </div>
+          )}
+
+          {approvedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`/api/campaigns/${campaignId}/brief`, '_blank')}
+            >
+              Brief para Designer
+            </Button>
           )}
 
           <Link

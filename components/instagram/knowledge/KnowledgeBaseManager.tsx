@@ -185,13 +185,14 @@ export default function KnowledgeBaseManager() {
 
       {/* Lista de documentos */}
       {documents.length === 0 ? (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-2 border-dashed border-border/60 shadow-sm">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground text-sm">
-              Nenhum documento indexado ainda.
+            <p className="text-3xl mb-3">📚</p>
+            <p className="text-muted-foreground text-sm font-medium">
+              Nenhum documento indexado
             </p>
             <p className="text-muted-foreground text-xs mt-1">
-              Faca upload de um PDF ou indexe o site para comecar.
+              Faca upload de PDFs ou indexe seu site para alimentar a IA nas campanhas.
             </p>
           </CardContent>
         </Card>

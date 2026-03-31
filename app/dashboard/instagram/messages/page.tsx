@@ -112,9 +112,9 @@ export default function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
             Mensagens
             {totalUnread > 0 && (
               <Badge className="ml-2 bg-red-500 text-white border-0">{totalUnread}</Badge>
@@ -124,7 +124,7 @@ export default function MessagesPage() {
             DMs do Instagram — responda casais e gerencie auto-replies
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="ghost"
@@ -157,9 +157,9 @@ export default function MessagesPage() {
       {showRules ? (
         <AutoReplyManager rules={rules} onSave={saveRule} onDelete={deleteRule} />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[320px,1fr] min-h-[600px]">
+        <div className="grid gap-4 lg:grid-cols-[320px,1fr] min-h-[400px] sm:min-h-[600px]">
           {/* Conversation list */}
-          <Card className="border-0 shadow-sm overflow-hidden">
+          <Card className={`border-0 shadow-sm overflow-hidden ${selectedId ? 'hidden lg:block' : ''}`}>
             <CardContent className="p-0">
               {loading ? (
                 <div className="p-4 space-y-3">
@@ -216,11 +216,20 @@ export default function MessagesPage() {
           </Card>
 
           {/* Chat view */}
-          <Card className="border-0 shadow-sm flex flex-col">
+          <Card className={`border-0 shadow-sm flex flex-col ${!selectedId ? 'hidden lg:flex' : ''}`}>
             {selectedConv ? (
               <>
                 <CardHeader className="pb-2 border-b shrink-0">
                   <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="lg:hidden h-7 px-2 text-xs"
+                      onClick={() => setSelectedId(null)}
+                      aria-label="Voltar para conversas"
+                    >
+                      &larr;
+                    </Button>
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
                       {(selectedConv.username ?? '?')[0].toUpperCase()}
                     </div>

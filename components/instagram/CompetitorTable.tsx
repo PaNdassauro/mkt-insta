@@ -110,9 +110,10 @@ export default function CompetitorTable() {
         </div>
 
         {competitors.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-border/60 p-8 text-center">
-            <p className="font-medium text-muted-foreground">Nenhum concorrente monitorado</p>
-            <p className="mt-1 text-sm text-muted-foreground/70">Adicione usernames acima para comecar o benchmarking.</p>
+          <div className="rounded-xl border-2 border-dashed border-border/60 p-10 text-center">
+            <p className="text-3xl mb-3">🔍</p>
+            <p className="font-medium text-muted-foreground">Nenhum concorrente cadastrado</p>
+            <p className="mt-1 text-sm text-muted-foreground/70">Adicione perfis concorrentes acima para acompanhar metricas e comparar performance.</p>
           </div>
         ) : (
           <div className="rounded-lg border overflow-hidden">

@@ -110,7 +110,7 @@ export default function CampaignsPage() {
       <div className="space-y-4" role="status" aria-label="Carregando campanhas">
         <span className="sr-only">Carregando campanhas...</span>
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20" />)}
         </div>
         <div className="grid gap-3">
@@ -123,10 +123,10 @@ export default function CampaignsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Campanhas</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Campanhas</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Gerencie campanhas de conteudo geradas com IA
           </p>
         </div>
@@ -170,13 +170,13 @@ export default function CampaignsPage() {
 
       {/* Filters + Search */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit" role="group" aria-label="Filtros de status">
+        <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-full sm:w-fit overflow-x-auto" role="group" aria-label="Filtros de status">
           {FILTER_OPTIONS.map((opt) => (
             <Button
               key={opt.value}
               size="sm"
               variant={filter === opt.value ? 'default' : 'ghost'}
-              className="h-8 text-xs"
+              className="h-8 text-xs shrink-0"
               onClick={() => setFilter(opt.value)}
             >
               {opt.label}
@@ -198,17 +198,31 @@ export default function CampaignsPage() {
 
       {/* Campaign List */}
       {filtered.length === 0 ? (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-2 border-dashed border-border/60 shadow-sm">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground text-sm">
-              {search || filter !== 'all'
-                ? 'Nenhuma campanha encontrada com esses filtros.'
-                : 'Nenhuma campanha criada ainda.'}
-            </p>
-            {!search && filter === 'all' && (
-              <Link href="/dashboard/instagram/campaigns/new" className="mt-3">
-                <Button size="sm">Criar primeira campanha</Button>
-              </Link>
+            {search || filter !== 'all' ? (
+              <>
+                <p className="text-2xl mb-2">🔎</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Nenhuma campanha encontrada com esses filtros.
+                </p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  Tente ajustar a busca ou remover os filtros aplicados.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-3xl mb-3">🎯</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Nenhuma campanha criada
+                </p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  Crie sua primeira campanha com IA para gerar conteudo automaticamente.
+                </p>
+                <Link href="/dashboard/instagram/campaigns/new" className="mt-4">
+                  <Button size="sm">Criar campanha</Button>
+                </Link>
+              </>
             )}
           </CardContent>
         </Card>
@@ -224,7 +238,7 @@ export default function CampaignsPage() {
                 className={`border-0 shadow-sm hover:shadow-md transition-all ${isArchived ? 'opacity-60' : ''}`}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                     {/* Left: Info */}
                     <Link
                       href={
@@ -266,7 +280,7 @@ export default function CampaignsPage() {
                     </Link>
 
                     {/* Right: Actions */}
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex flex-wrap gap-1 shrink-0">
                       <Link
                         href={`/dashboard/instagram/campaigns/${campaign.id}`}
                         onClick={(e) => e.stopPropagation()}

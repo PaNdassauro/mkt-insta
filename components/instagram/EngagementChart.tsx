@@ -40,8 +40,10 @@ export default function EngagementChart({ posts, isLoading }: EngagementChartPro
           <CardTitle className="text-base font-semibold">Engajamento por Semana</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-72 items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
-            Nenhum dado de post disponivel.
+          <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-muted/30 text-center">
+            <p className="text-2xl mb-2">💬</p>
+            <p className="text-sm text-muted-foreground">Nenhum dado de engajamento disponivel.</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Os dados aparecerao apos a sincronizacao dos posts.</p>
           </div>
         </CardContent>
       </Card>

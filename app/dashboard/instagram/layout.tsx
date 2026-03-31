@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useSessionCheck } from '@/hooks/useSessionCheck'
+import { useNotificationBadges } from '@/hooks/useNotificationBadges'
 
 interface NavGroup {
   label: string
@@ -86,6 +87,23 @@ export default function InstagramLayout({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   useSessionCheck()
+  const badges = useNotificationBadges()
+
+  // Map nav item labels to badge counts
+  function getBadgeForItem(label: string): { count: number; type: 'count' | 'dot' } | null {
+    switch (label) {
+      case 'Comentarios':
+        return badges.comments > 0 ? { count: badges.comments, type: 'count' } : null
+      case 'Campanhas':
+        return badges.campaigns > 0 ? { count: badges.campaigns, type: 'count' } : null
+      case 'Mensagens':
+        return badges.messages > 0 ? { count: badges.messages, type: 'count' } : null
+      case 'Configuracoes':
+        return badges.tokenExpiring ? { count: 0, type: 'dot' } : null
+      default:
+        return null
+    }
+  }
 
   function toggleGroup(label: string) {
     setCollapsedGroups((prev) => {
@@ -147,22 +165,33 @@ export default function InstagramLayout({
                 </button>
                 {!isCollapsed && (
                   <div className="flex flex-col gap-0.5 mb-2">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive(item.href) ? 'page' : undefined}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
-                          isActive(item.href)
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        )}
-                      >
-                        <span className="text-base" aria-hidden="true">{item.icon}</span>
-                        {item.label}
-                      </Link>
-                    ))}
+                    {group.items.map((item) => {
+                      const badge = getBadgeForItem(item.label)
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={isActive(item.href) ? 'page' : undefined}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                            isActive(item.href)
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )}
+                        >
+                          <span className="text-base" aria-hidden="true">{item.icon}</span>
+                          {item.label}
+                          {badge && badge.type === 'count' && (
+                            <span className="ml-auto bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
+                              {badge.count > 99 ? '99+' : badge.count}
+                            </span>
+                          )}
+                          {badge && badge.type === 'dot' && (
+                            <span className="ml-auto h-2.5 w-2.5 rounded-full bg-yellow-500" aria-label="Atencao" />
+                          )}
+                        </Link>
+                      )
+                    })}
                   </div>
                 )}
                 {isCollapsed && hasActiveItem && (
@@ -206,22 +235,33 @@ export default function InstagramLayout({
           </button>
         </div>
         <nav className="flex overflow-x-auto border-t px-2 py-1.5" role="navigation" aria-label="Menu principal">
-          {mobileNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? 'page' : undefined}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
-                isActive(item.href)
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground'
-              )}
-            >
-              <span aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+          {mobileNavItems.map((item) => {
+            const badge = getBadgeForItem(item.label)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                className={cn(
+                  'relative flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
+                  isActive(item.href)
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground'
+                )}
+              >
+                <span aria-hidden="true">{item.icon}</span>
+                {item.label}
+                {badge && badge.type === 'count' && (
+                  <span className="ml-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
+                    {badge.count > 99 ? '99+' : badge.count}
+                  </span>
+                )}
+                {badge && badge.type === 'dot' && (
+                  <span className="ml-0.5 h-2 w-2 rounded-full bg-yellow-500" aria-label="Atencao" />
+                )}
+              </Link>
+            )
+          })}
         </nav>
       </div>
 

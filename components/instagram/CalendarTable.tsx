@@ -90,13 +90,13 @@ export default function CalendarTable() {
           <span className="text-sm font-semibold capitalize min-w-[160px] text-center">{monthName}</span>
           <Button size="sm" variant="ghost" onClick={() => changeMonth(1)} aria-label="Proximo mes">&rarr;</Button>
         </div>
-        <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit" role="group" aria-label="Filtros de status">
+        <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-full sm:w-fit overflow-x-auto" role="group" aria-label="Filtros de status">
           {([['all', 'Todos'], ['DRAFT', 'Rascunho'], ['APPROVED', 'Aprovado'], ['PUBLISHED', 'Publicado'], ['CANCELLED', 'Cancelado']] as const).map(([value, label]) => (
             <Button
               key={value}
               size="sm"
               variant={filter === value ? 'default' : 'ghost'}
-              className="h-7 text-xs"
+              className="h-7 text-xs shrink-0"
               onClick={() => setFilter(value as typeof filter)}
             >
               {label}
@@ -126,7 +126,7 @@ export default function CalendarTable() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Formato</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Conteudo</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Midia</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Midia</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Acoes</th>
                 </tr>
               </thead>
@@ -173,7 +173,7 @@ export default function CalendarTable() {
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden md:table-cell">
                         {entry.media_url ? (
                           <Badge variant="secondary" className="text-[10px] bg-green-50 text-green-600">
                             Com midia
@@ -183,7 +183,7 @@ export default function CalendarTable() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex gap-1 justify-end">
+                        <div className="flex flex-wrap gap-1 justify-end">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -230,7 +230,7 @@ export default function CalendarTable() {
             </table>
           </div>
           {/* Summary */}
-          <div className="px-4 py-3 border-t bg-muted/10 text-xs text-muted-foreground flex gap-4">
+          <div className="px-4 py-3 border-t bg-muted/10 text-xs text-muted-foreground flex flex-wrap gap-2 sm:gap-4">
             <span>{filtered.length} entradas</span>
             <span>{filtered.filter((e) => e.status === 'DRAFT').length} rascunhos</span>
             <span>{filtered.filter((e) => e.status === 'APPROVED').length} aprovados</span>

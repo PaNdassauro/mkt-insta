@@ -97,11 +97,14 @@ export default function MentionsPage() {
           <Skeleton className="h-64" />
         </div>
       ) : mentions.length === 0 ? (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <p className="text-2xl mb-2">📷</p>
-            <p className="text-sm">Nenhuma mencao encontrada</p>
-            <p className="text-xs mt-1">Clique em Sincronizar para buscar posts que taguearam @welcomeweddings</p>
+        <Card className="border-2 border-dashed border-border/60 shadow-sm">
+          <CardContent className="p-10 text-center">
+            <p className="text-3xl mb-3">📷</p>
+            <p className="text-sm font-medium text-muted-foreground">Nenhuma mencao encontrada</p>
+            <p className="text-xs text-muted-foreground mt-1">Sincronize para buscar posts que mencionaram ou taguearam @welcomeweddings.</p>
+            <Button size="sm" className="mt-4" onClick={syncMentions} disabled={syncing}>
+              {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
+            </Button>
           </CardContent>
         </Card>
       ) : (

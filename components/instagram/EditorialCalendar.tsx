@@ -375,6 +375,18 @@ export default function EditorialCalendar() {
         </Card>
       )}
 
+      {/* Empty month message */}
+      {!isLoading && entries.length === 0 && (
+        <div className="rounded-xl border-2 border-dashed border-border/60 p-8 text-center">
+          <p className="text-2xl mb-2">📅</p>
+          <p className="text-sm font-medium text-muted-foreground">Nenhum conteudo agendado para este mes.</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Clique em &quot;+ Novo conteudo&quot; para planejar suas publicacoes.</p>
+          <Button size="sm" className="mt-4" onClick={() => setShowForm(true)}>
+            + Novo conteudo
+          </Button>
+        </div>
+      )}
+
       {/* Legenda */}
       <div className="flex flex-wrap gap-3 text-xs">
         {Object.entries(STATUS_CONFIG).map(([key, config]) => (

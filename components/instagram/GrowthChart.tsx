@@ -51,8 +51,10 @@ export default function GrowthChart({ data, isLoading }: GrowthChartProps) {
           <CardTitle className="text-base font-semibold">Crescimento de Seguidores</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-72 items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
-            Nenhum dado historico disponivel.
+          <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-muted/30 text-center">
+            <p className="text-2xl mb-2">📈</p>
+            <p className="text-sm text-muted-foreground">Nenhum dado historico disponivel.</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Execute o sync para comecar a rastrear o crescimento de seguidores.</p>
           </div>
         </CardContent>
       </Card>

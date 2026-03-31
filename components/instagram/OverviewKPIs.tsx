@@ -65,9 +65,10 @@ export default function OverviewKPIs({
 
   if (!current) {
     return (
-      <div className="rounded-xl border-2 border-dashed border-border/60 p-12 text-center">
-        <p className="text-lg font-medium text-muted-foreground">Nenhum dado disponivel</p>
-        <p className="mt-1 text-sm text-muted-foreground/70">Execute o sync para popular os dados.</p>
+      <div className="rounded-xl border-2 border-dashed border-border/60 p-10 text-center">
+        <p className="text-3xl mb-3">📊</p>
+        <p className="text-base font-medium text-muted-foreground">Nenhuma metrica coletada ainda</p>
+        <p className="mt-1 text-sm text-muted-foreground/70">Execute o sync para comecar a acompanhar seguidores, alcance e engajamento.</p>
       </div>
     )
   }

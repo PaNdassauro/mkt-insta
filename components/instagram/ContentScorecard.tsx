@@ -127,7 +127,11 @@ export default function ContentScorecard({ posts, reels, isLoading }: ContentSco
       </CardHeader>
       <CardContent className="pt-0">
         {items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhum conteudo disponivel.</p>
+          <div className="py-8 text-center">
+            <p className="text-2xl mb-2">🏆</p>
+            <p className="text-sm text-muted-foreground">Nenhum conteudo avaliado ainda.</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Os scores aparecerao apos a sincronizacao dos posts e reels.</p>
+          </div>
         ) : (
           <div className="rounded-lg border overflow-hidden">
             <Table>
