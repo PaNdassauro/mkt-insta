@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
@@ -23,12 +23,9 @@ export async function GET(
       throw new Error(`Failed to fetch posts: ${error.message}`)
     }
 
-    return NextResponse.json(data ?? [])
+    return apiSuccess(data ?? [])
   } catch (err) {
     console.error('[Campaign Posts GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

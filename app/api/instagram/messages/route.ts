@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * GET /api/instagram/messages
@@ -37,13 +37,10 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json(conversations)
+    return apiSuccess(conversations)
   } catch (err) {
     console.error('[Messages GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -60,10 +57,7 @@ export async function POST(request: Request) {
     const { conversation_id, text } = body
 
     if (!conversation_id || !text) {
-      return NextResponse.json(
-        { error: 'conversation_id and text are required' },
-        { status: 400 }
-      )
+      return apiError('conversation_id and text are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -76,7 +70,7 @@ export async function POST(request: Request) {
       .single()
 
     if (!conv) {
-      return NextResponse.json({ error: 'Conversa nao encontrada' }, { status: 404 })
+      return apiError('Conversa nao encontrada', 404)
     }
 
     // Enviar via Instagram API
@@ -121,12 +115,9 @@ export async function POST(request: Request) {
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversation_id)
 
-    return NextResponse.json(msg)
+    return apiSuccess(msg)
   } catch (err) {
     console.error('[Messages POST]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError } from '@/lib/api-response'
 
 const VERIFY_TOKEN = process.env.CRON_SECRET ?? 'dashig-webhook-verify'
 
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     return new Response(challenge, { status: 200 })
   }
 
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  return apiError('Forbidden', 403)
 }
 
 /**
@@ -49,11 +49,11 @@ export async function POST(request: Request) {
     }
 
     // Always return 200 quickly (Meta requires < 5s response)
-    return NextResponse.json({ status: 'ok' })
+    return apiSuccess({ status: 'ok' })
   } catch (err) {
     console.error('[Webhook] Error:', err)
     // Still return 200 to prevent Meta from retrying
-    return NextResponse.json({ status: 'error' })
+    return apiSuccess({ status: 'error' })
   }
 }
 

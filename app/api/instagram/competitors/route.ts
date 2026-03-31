@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 export async function GET() {
   try {
@@ -37,13 +37,10 @@ export async function GET() {
       latest_snapshot: snapshotMap.get(comp.id) ?? null,
     }))
 
-    return NextResponse.json({ data: results })
+    return apiSuccess({ data: results })
   } catch (err) {
     console.error('[DashIG Competitors] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -56,7 +53,7 @@ export async function POST(request: Request) {
     const { username, display_name } = body
 
     if (!username) {
-      return NextResponse.json({ error: 'username is required' }, { status: 400 })
+      return apiError('username is required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -71,13 +68,10 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ data })
+    return apiSuccess({ data })
   } catch (err) {
     console.error('[DashIG Competitors POST] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -86,7 +80,7 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    if (!id) return apiError('id is required', 400)
 
     const supabase = createServerSupabaseClient()
 
@@ -96,12 +90,9 @@ export async function DELETE(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true })
   } catch (err) {
     console.error('[DashIG Competitors DELETE] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

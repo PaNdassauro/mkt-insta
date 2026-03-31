@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { calcEngagementRate } from '@/lib/analytics'
+import { apiError, getErrorMessage } from '@/lib/api-response'
 
 function toCsv(headers: string[], rows: string[][]): string {
   const escape = (val: string) => {
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
       filename = 'dashig-hashtags.csv'
 
     } else {
-      return NextResponse.json({ error: 'Invalid type. Use: posts, reels, hashtags' }, { status: 400 })
+      return apiError('Invalid type. Use: posts, reels, hashtags', 400)
     }
 
     return new Response(csv, {
@@ -106,6 +106,6 @@ export async function GET(request: Request) {
     })
   } catch (err) {
     console.error('[DashIG Export] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }

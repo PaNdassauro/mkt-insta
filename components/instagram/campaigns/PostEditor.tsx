@@ -26,6 +26,14 @@ interface PostEditorProps {
   onUpdate: (updated: CampaignPost) => void
 }
 
+interface HashtagSuggestion {
+  hashtag: string
+  count: number
+  avg_reach: number
+  impact: number
+  in_caption: boolean
+}
+
 export default function PostEditor({ post, campaignId, onUpdate }: PostEditorProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -35,6 +43,28 @@ export default function PostEditor({ post, campaignId, onUpdate }: PostEditorPro
   )
   const [visualNotes, setVisualNotes] = useState(post.visual_notes ?? '')
   const [analystNotes, setAnalystNotes] = useState(post.analyst_notes ?? '')
+  const [suggestions, setSuggestions] = useState<HashtagSuggestion[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
+  async function fetchSuggestions() {
+    setLoadingSuggestions(true)
+    try {
+      const params = new URLSearchParams({ caption: captionEdit })
+      const res = await fetch(`/api/instagram/hashtags/suggest?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSuggestions(data.suggestions ?? [])
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingSuggestions(false) }
+  }
+
+  function addSuggestion(tag: string) {
+    const current = hashtagsEdit.split(',').map((h) => h.trim().replace(/^#/, '')).filter(Boolean)
+    if (current.includes(tag)) return
+    setHashtagsEdit([...current, tag].join(', '))
+    setSuggestions((prev) => prev.filter((s) => s.hashtag !== tag))
+  }
 
   const fmt = FORMAT_CONFIG[post.format] ?? FORMAT_CONFIG.IMAGE
   const statusCfg = POST_STATUS_BADGE[post.status] ?? POST_STATUS_BADGE.PENDING
@@ -126,15 +156,43 @@ export default function PostEditor({ post, campaignId, onUpdate }: PostEditorPro
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Hashtags (separadas por virgula)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Hashtags (separadas por virgula)
+                </label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] text-primary"
+                  onClick={fetchSuggestions}
+                  disabled={loadingSuggestions}
+                >
+                  {loadingSuggestions ? 'Buscando...' : 'Sugerir hashtags'}
+                </Button>
+              </div>
               <Textarea
                 value={hashtagsEdit}
                 onChange={(e) => setHashtagsEdit(e.target.value)}
                 rows={2}
                 className="text-sm"
               />
+              {suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.hashtag}
+                      type="button"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      onClick={() => addSuggestion(s.hashtag)}
+                      title={`${s.count} usos · reach medio ${s.avg_reach.toLocaleString('pt-BR')}`}
+                    >
+                      #{s.hashtag}
+                      <span className="text-muted-foreground">({s.count}x)</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">

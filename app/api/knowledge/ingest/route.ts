@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parsePDF } from '@/lib/rag/pdf-parser'
 import { chunkText } from '@/lib/rag/chunker'
 import { generateEmbeddings } from '@/lib/rag/embeddings'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * POST /api/knowledge/ingest
@@ -21,26 +21,17 @@ export async function POST(request: Request) {
     const description = formData.get('description') as string | null
 
     if (!file || !title) {
-      return NextResponse.json(
-        { error: 'file and title are required' },
-        { status: 400 }
-      )
+      return apiError('file and title are required', 400)
     }
 
     // Limite de 20MB
     const MAX_SIZE = 20 * 1024 * 1024
     if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { error: 'Arquivo muito grande. Maximo: 20MB' },
-        { status: 400 }
-      )
+      return apiError('Arquivo muito grande. Maximo: 20MB', 400)
     }
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return NextResponse.json(
-        { error: 'Only PDF files are supported' },
-        { status: 400 }
-      )
+      return apiError('Only PDF files are supported', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -51,10 +42,7 @@ export async function POST(request: Request) {
     const parsed = await parsePDF(buffer)
 
     if (!parsed.text.trim()) {
-      return NextResponse.json(
-        { error: 'PDF has no extractable text' },
-        { status: 400 }
-      )
+      return apiError('PDF has no extractable text', 400)
     }
 
     // 2. Criar documento na knowledge_documents
@@ -104,7 +92,7 @@ export async function POST(request: Request) {
       throw new Error(`Failed to insert chunks: ${chunkError.message}`)
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       success: true,
       document_id: doc.id,
       title,
@@ -113,9 +101,6 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('[Knowledge Ingest]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

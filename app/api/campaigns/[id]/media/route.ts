@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -23,10 +23,7 @@ export async function POST(
     }
 
     if (!media_ids?.length || !media_type) {
-      return NextResponse.json(
-        { error: 'media_ids and media_type are required' },
-        { status: 400 }
-      )
+      return apiError('media_ids and media_type are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -47,13 +44,10 @@ export async function POST(
       throw new Error(`Failed to link media: ${error.message}`)
     }
 
-    return NextResponse.json({ linked: media_ids.length, media_type })
+    return apiSuccess({ linked: media_ids.length, media_type })
   } catch (err) {
     console.error('[Campaign Media Link]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -92,12 +86,9 @@ export async function DELETE(
       .in('media_id', media_ids)
       .eq('campaign_id', id)
 
-    return NextResponse.json({ unlinked: media_ids.length })
+    return apiSuccess({ unlinked: media_ids.length })
   } catch (err) {
     console.error('[Campaign Media Unlink]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

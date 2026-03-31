@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * GET /api/instagram/calendar/[id]
@@ -20,15 +20,12 @@ export async function GET(
       .single()
 
     if (error) {
-      return NextResponse.json({ error: 'Entrada nao encontrada' }, { status: 404 })
+      return apiError('Entrada nao encontrada', 404)
     }
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     console.error('[Calendar Entry GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

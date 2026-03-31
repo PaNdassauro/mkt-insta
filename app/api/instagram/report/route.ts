@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { generateMonthlyReport, reportToHtml } from '@/lib/report-generator'
 import { Resend } from 'resend'
 import { validateCronSecret } from '@/lib/auth'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 // GET — gera e retorna o relatorio como HTML
 export async function GET() {
@@ -14,10 +14,7 @@ export async function GET() {
     })
   } catch (err) {
     console.error('[DashIG Report GET] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -31,10 +28,7 @@ export async function POST(request: Request) {
     const recipientEmail = process.env.REPORT_RECIPIENT_EMAIL
 
     if (!resendKey || !recipientEmail) {
-      return NextResponse.json(
-        { error: 'RESEND_API_KEY and REPORT_RECIPIENT_EMAIL required' },
-        { status: 500 }
-      )
+      return apiError('RESEND_API_KEY and REPORT_RECIPIENT_EMAIL required', 500)
     }
 
     const report = await generateMonthlyReport()
@@ -50,16 +44,13 @@ export async function POST(request: Request) {
 
     if (error) throw new Error(JSON.stringify(error))
 
-    return NextResponse.json({
+    return apiSuccess({
       success: true,
       sent_to: recipientEmail,
       month: `${report.month} ${report.year}`,
     })
   } catch (err) {
     console.error('[DashIG Report POST] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -26,10 +26,10 @@ export async function GET(request: Request) {
     const { data, error } = await query
     if (error) throw error
 
-    return NextResponse.json(data ?? [])
+    return apiSuccess(data ?? [])
   } catch (err) {
     console.error('[Mentions GET]', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         .from('instagram_mentions')
         .update({ is_saved: true, notes: body.notes ?? null })
         .eq('id', body.id)
-      return NextResponse.json({ success: true })
+      return apiSuccess({ success: true })
     }
 
     // Acao: unsave
@@ -61,14 +61,14 @@ export async function POST(request: Request) {
         .from('instagram_mentions')
         .update({ is_saved: false })
         .eq('id', body.id)
-      return NextResponse.json({ success: true })
+      return apiSuccess({ success: true })
     }
 
     // Acao padrao: sync de mencoes
     return handleSync()
   } catch (err) {
     console.error('[Mentions POST]', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -100,5 +100,5 @@ async function handleSync() {
     synced++
   }
 
-  return NextResponse.json({ synced })
+  return apiSuccess({ synced })
 }

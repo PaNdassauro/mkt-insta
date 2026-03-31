@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { buildPrompt, type CampaignBriefing } from '@/lib/campaign/prompt-builder'
@@ -20,10 +20,7 @@ export async function POST(request: Request) {
     const briefing = body as CampaignBriefing
 
     if (!briefing.title || !briefing.objective || !briefing.theme) {
-      return NextResponse.json(
-        { error: 'title, objective and theme are required' },
-        { status: 400 }
-      )
+      return apiError('title, objective and theme are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -146,8 +143,7 @@ export async function POST(request: Request) {
             .update({ status: 'DRAFT', updated_at: new Date().toISOString() })
             .eq('id', campaign.id)
 
-          const errorMsg =
-            err instanceof Error ? err.message : 'Generation failed'
+          const errorMsg = getErrorMessage(err)
           controller.enqueue(
             new TextEncoder().encode(
               `\n---ERROR---\n${JSON.stringify({ error: errorMsg })}`
@@ -167,9 +163,6 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('[Campaign Generate]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

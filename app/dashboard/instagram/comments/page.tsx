@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
+import SentimentChart from '@/components/instagram/SentimentChart'
 import type { InstagramComment } from '@/types/instagram'
 
 const FILTERS = [
@@ -130,6 +131,9 @@ export default function CommentsPage() {
           </Badge>
         )}
       </div>
+
+      {/* Sentiment Chart */}
+      <SentimentChart />
 
       {/* Filters */}
       <div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit">

@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 export async function GET(request: Request) {
   try {
@@ -23,10 +23,10 @@ export async function GET(request: Request) {
     const { data, error } = await query
     if (error) throw error
 
-    return NextResponse.json({ data })
+    return apiSuccess({ data })
   } catch (err) {
     console.error('[DashIG Calendar GET] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const { scheduled_for, content_type, topic, caption_draft, hashtags_plan, status } = body
 
     if (!scheduled_for || !content_type) {
-      return NextResponse.json({ error: 'scheduled_for and content_type are required' }, { status: 400 })
+      return apiError('scheduled_for and content_type are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -57,10 +57,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ data })
+    return apiSuccess({ data })
   } catch (err) {
     console.error('[DashIG Calendar POST] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -72,7 +72,7 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { id } = body
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    if (!id) return apiError('id is required', 400)
 
     const allowedFields = [
       'scheduled_for', 'content_type', 'topic', 'caption_draft',
@@ -86,18 +86,18 @@ export async function PUT(request: Request) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+      return apiError('No valid fields to update', 400)
     }
 
     // Validar enums
     const validStatuses = ['DRAFT', 'APPROVED', 'PUBLISHED', 'CANCELLED']
     if (updates.status && !validStatuses.includes(updates.status as string)) {
-      return NextResponse.json({ error: `Invalid status. Must be: ${validStatuses.join(', ')}` }, { status: 400 })
+      return apiError(`Invalid status. Must be: ${validStatuses.join(', ')}`, 400)
     }
 
     const validTypes = ['REEL', 'CAROUSEL', 'IMAGE', 'STORY']
     if (updates.content_type && !validTypes.includes(updates.content_type as string)) {
-      return NextResponse.json({ error: `Invalid content_type. Must be: ${validTypes.join(', ')}` }, { status: 400 })
+      return apiError(`Invalid content_type. Must be: ${validTypes.join(', ')}`, 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -109,10 +109,10 @@ export async function PUT(request: Request) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ data })
+    return apiSuccess({ data })
   } catch (err) {
     console.error('[DashIG Calendar PUT] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -123,15 +123,15 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    if (!id) return apiError('id is required', 400)
 
     const supabase = createServerSupabaseClient()
     const { error } = await supabase.from('instagram_editorial_calendar').delete().eq('id', id)
     if (error) throw error
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true })
   } catch (err) {
     console.error('[DashIG Calendar DELETE] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }

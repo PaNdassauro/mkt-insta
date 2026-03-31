@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -30,10 +30,10 @@ export async function GET(request: Request) {
     const { data, error } = await query
     if (error) throw error
 
-    return NextResponse.json(data ?? [])
+    return apiSuccess(data ?? [])
   } catch (err) {
     console.error('[Comments GET]', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     return handleSync()
   } catch (err) {
     console.error('[Comments POST]', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -112,12 +112,12 @@ async function handleSync() {
     }
   }
 
-  return NextResponse.json({ synced, media_checked: mediaIds.length })
+  return apiSuccess({ synced, media_checked: mediaIds.length })
 }
 
 async function handleReply(commentId: string, text: string) {
   if (!commentId || !text) {
-    return NextResponse.json({ error: 'comment_id and text required' }, { status: 400 })
+    return apiError('comment_id and text required', 400)
   }
 
   const token = await getAccessToken()
@@ -139,7 +139,7 @@ async function handleReply(commentId: string, text: string) {
     .update({ is_replied: true, reply_text: text, replied_at: new Date().toISOString() })
     .eq('comment_id', commentId)
 
-  return NextResponse.json({ success: true })
+  return apiSuccess({ success: true })
 }
 
 async function handleHide(commentId: string, hide: boolean) {
@@ -157,7 +157,7 @@ async function handleHide(commentId: string, hide: boolean) {
     .update({ is_hidden: hide })
     .eq('comment_id', commentId)
 
-  return NextResponse.json({ success: true, hidden: hide })
+  return apiSuccess({ success: true, hidden: hide })
 }
 
 async function handleDelete(commentId: string) {
@@ -168,7 +168,7 @@ async function handleDelete(commentId: string) {
 
   await supabase.from('instagram_comments').delete().eq('comment_id', commentId)
 
-  return NextResponse.json({ success: true })
+  return apiSuccess({ success: true })
 }
 
 function classifySentiment(text: string): 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'QUESTION' {

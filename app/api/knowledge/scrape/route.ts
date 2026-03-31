@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
 import { validateCronSecret } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { chunkText } from '@/lib/rag/chunker'
 import { generateEmbeddings } from '@/lib/rag/embeddings'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 const SITE_URL = process.env.WELCOME_WEDDINGS_SITE_URL || 'https://www.welcomeweddings.com.br'
 
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       success: true,
       pages_scraped: PAGES_TO_SCRAPE.length - errors.length,
       total_chunks: totalChunks,
@@ -133,10 +133,7 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('[Knowledge Scrape]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 

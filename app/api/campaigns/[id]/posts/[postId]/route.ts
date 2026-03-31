@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { alertCampaignApproved } from '@/lib/telegram'
 
 /**
  * PATCH /api/campaigns/[id]/posts/[postId]
@@ -59,15 +60,20 @@ export async function PATCH(
           .from('instagram_campaigns')
           .update({ status: 'APPROVED', updated_at: new Date().toISOString() })
           .eq('id', id)
+
+        // Notificar via Telegram
+        const { data: campaign } = await supabase
+          .from('instagram_campaigns')
+          .select('title')
+          .eq('id', id)
+          .single()
+        await alertCampaignApproved(campaign?.title ?? 'Sem titulo', allPosts.length)
       }
     }
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     console.error('[Campaign Post PATCH]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

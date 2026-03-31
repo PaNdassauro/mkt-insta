@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
@@ -22,7 +22,7 @@ export async function GET(
       .single()
 
     if (campErr || !campaign) {
-      return NextResponse.json({ error: 'Campanha nao encontrada' }, { status: 404 })
+      return apiError('Campanha nao encontrada', 404)
     }
 
     // Buscar posts da campanha (gerados pela IA)
@@ -86,7 +86,7 @@ export async function GET(
 
     const isComplete = campaign.status === 'SCHEDULED' || campaign.status === 'ARCHIVED'
 
-    return NextResponse.json({
+    return apiSuccess({
       campaign,
       campaign_posts: campaignPosts ?? [],
       linked_media: { posts, reels },
@@ -108,9 +108,6 @@ export async function GET(
     })
   } catch (err) {
     console.error('[Campaign Report]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

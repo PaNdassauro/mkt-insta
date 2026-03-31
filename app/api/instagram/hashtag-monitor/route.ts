@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -19,9 +19,9 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json(data ?? [])
+    return apiSuccess(data ?? [])
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -48,15 +48,15 @@ export async function POST(request: Request) {
       return handleRemove(body.id)
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    return apiError('Invalid action', 400)
   } catch (err) {
     console.error('[Hashtag Monitor]', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 })
+    return apiError(getErrorMessage(err))
   }
 }
 
 async function handleAdd(hashtag: string) {
-  if (!hashtag) return NextResponse.json({ error: 'hashtag is required' }, { status: 400 })
+  if (!hashtag) return apiError('hashtag is required', 400)
 
   const clean = hashtag.replace(/^#/, '').toLowerCase().trim()
   const supabase = createServerSupabaseClient()
@@ -80,13 +80,13 @@ async function handleAdd(hashtag: string) {
     .single()
 
   if (error) throw error
-  return NextResponse.json(data)
+  return apiSuccess(data)
 }
 
 async function handleRemove(id: string) {
   const supabase = createServerSupabaseClient()
   await supabase.from('monitored_hashtags').update({ is_active: false }).eq('id', id)
-  return NextResponse.json({ success: true })
+  return apiSuccess({ success: true })
 }
 
 async function handleSync() {
@@ -101,7 +101,7 @@ async function handleSync() {
     .not('ig_hashtag_id', 'is', null)
 
   if (!hashtags || hashtags.length === 0) {
-    return NextResponse.json({ synced: 0, message: 'Nenhuma hashtag com ID para sincronizar' })
+    return apiSuccess({ synced: 0, message: 'Nenhuma hashtag com ID para sincronizar' })
   }
 
   const today = new Date().toISOString().slice(0, 10)
@@ -148,5 +148,5 @@ async function handleSync() {
     }
   }
 
-  return NextResponse.json({ synced, total: hashtags.length })
+  return apiSuccess({ synced, total: hashtags.length })
 }

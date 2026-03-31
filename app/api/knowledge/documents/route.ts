@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * GET /api/knowledge/documents
@@ -32,13 +32,10 @@ export async function GET() {
       created_at: doc.created_at,
     }))
 
-    return NextResponse.json(formatted)
+    return apiSuccess(formatted)
   } catch (err) {
     console.error('[Knowledge Documents GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -53,10 +50,7 @@ export async function PATCH(request: Request) {
     const { id, is_active } = body
 
     if (!id || typeof is_active !== 'boolean') {
-      return NextResponse.json(
-        { error: 'id and is_active (boolean) are required' },
-        { status: 400 }
-      )
+      return apiError('id and is_active (boolean) are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -70,13 +64,10 @@ export async function PATCH(request: Request) {
       throw new Error(`Failed to update document: ${error.message}`)
     }
 
-    return NextResponse.json({ success: true, id, is_active })
+    return apiSuccess({ success: true, id, is_active })
   } catch (err) {
     console.error('[Knowledge Documents PATCH]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -91,10 +82,7 @@ export async function DELETE(request: Request) {
     const { id } = body
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'id is required' },
-        { status: 400 }
-      )
+      return apiError('id is required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -108,12 +96,9 @@ export async function DELETE(request: Request) {
       throw new Error(`Failed to delete document: ${error.message}`)
     }
 
-    return NextResponse.json({ success: true, id })
+    return apiSuccess({ success: true, id })
   } catch (err) {
     console.error('[Knowledge Documents DELETE]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

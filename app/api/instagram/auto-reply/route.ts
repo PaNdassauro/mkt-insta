@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * GET /api/instagram/auto-reply
@@ -15,12 +15,9 @@ export async function GET() {
       .order('priority', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json(data ?? [])
+    return apiSuccess(data ?? [])
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -37,10 +34,7 @@ export async function POST(request: Request) {
     const { name, keywords, match_type, reply_text, priority } = body
 
     if (!name || !keywords?.length || !reply_text) {
-      return NextResponse.json(
-        { error: 'name, keywords and reply_text are required' },
-        { status: 400 }
-      )
+      return apiError('name, keywords and reply_text are required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -57,12 +51,9 @@ export async function POST(request: Request) {
       .single()
 
     if (error) throw error
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -79,7 +70,7 @@ export async function PUT(request: Request) {
     const { id, ...updates } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'id is required' }, { status: 400 })
+      return apiError('id is required', 400)
     }
 
     const allowedFields = ['name', 'keywords', 'match_type', 'reply_text', 'is_active', 'priority']
@@ -97,12 +88,9 @@ export async function PUT(request: Request) {
       .single()
 
     if (error) throw error
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -116,15 +104,12 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    if (!id) return apiError('id is required', 400)
 
     const supabase = createServerSupabaseClient()
     await supabase.from('auto_reply_rules').delete().eq('id', id)
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
 /**
  * GET /api/instagram/messages/[conversationId]
@@ -28,12 +28,9 @@ export async function GET(
       .update({ unread_count: 0 })
       .eq('id', conversationId)
 
-    return NextResponse.json(messages ?? [])
+    return apiSuccess(messages ?? [])
   } catch (err) {
     console.error('[Messages Thread GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

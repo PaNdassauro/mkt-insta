@@ -22,6 +22,7 @@ const navItems = [
   { label: 'Hashtag Monitor', href: '/dashboard/instagram/hashtag-monitor', icon: '🔍' },
   { label: 'Knowledge Base', href: '/dashboard/instagram/knowledge', icon: '🧠' },
   { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
+  { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
 ]
 
 export default function InstagramLayout({

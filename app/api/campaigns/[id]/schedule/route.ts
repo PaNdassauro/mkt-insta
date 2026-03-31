@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -25,14 +25,11 @@ export async function POST(
       .single()
 
     if (campErr || !campaign) {
-      return NextResponse.json({ error: 'Campanha nao encontrada' }, { status: 404 })
+      return apiError('Campanha nao encontrada', 404)
     }
 
     if (campaign.status !== 'APPROVED') {
-      return NextResponse.json(
-        { error: 'Campanha precisa estar aprovada para agendar' },
-        { status: 400 }
-      )
+      return apiError('Campanha precisa estar aprovada para agendar', 400)
     }
 
     // Buscar posts aprovados
@@ -44,10 +41,7 @@ export async function POST(
       .order('post_order')
 
     if (postsErr || !posts || posts.length === 0) {
-      return NextResponse.json(
-        { error: 'Nenhum post aprovado encontrado' },
-        { status: 400 }
-      )
+      return apiError('Nenhum post aprovado encontrado', 400)
     }
 
     let scheduled = 0
@@ -91,12 +85,9 @@ export async function POST(
       .update({ status: 'SCHEDULED', updated_at: new Date().toISOString() })
       .eq('id', id)
 
-    return NextResponse.json({ scheduled, total: posts.length })
+    return apiSuccess({ scheduled, total: posts.length })
   } catch (err) {
     console.error('[Campaign Schedule]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

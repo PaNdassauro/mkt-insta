@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { buildChatSystemPrompt } from '@/lib/campaign/system-prompt'
@@ -24,7 +24,7 @@ export async function POST(
     }
 
     if (!messages || messages.length === 0) {
-      return NextResponse.json({ error: 'messages is required' }, { status: 400 })
+      return apiError('messages is required', 400)
     }
 
     const supabase = createServerSupabaseClient()
@@ -44,7 +44,7 @@ export async function POST(
     ])
 
     if (!campaign) {
-      return NextResponse.json({ error: 'Campanha nao encontrada' }, { status: 404 })
+      return apiError('Campanha nao encontrada', 404)
     }
 
     // Montar contexto
@@ -82,12 +82,9 @@ ${(posts ?? []).map((p) => `#${p.post_order} [${p.format}] ${p.scheduled_for ? n
     const assistantMessage =
       response.content[0].type === 'text' ? response.content[0].text : ''
 
-    return NextResponse.json({ message: assistantMessage })
+    return apiSuccess({ message: assistantMessage })
   } catch (err) {
     console.error('[Campaign Chat]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }

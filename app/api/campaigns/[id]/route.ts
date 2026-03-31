@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -24,13 +24,10 @@ export async function GET(
       throw new Error(`Campaign not found: ${error.message}`)
     }
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     console.error('[Campaign GET]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
 
@@ -70,12 +67,9 @@ export async function PATCH(
       throw new Error(`Failed to update campaign: ${error.message}`)
     }
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     console.error('[Campaign PATCH]', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 }
-    )
+    return apiError(getErrorMessage(err))
   }
 }
