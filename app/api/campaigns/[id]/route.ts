@@ -102,7 +102,26 @@ export async function DELETE(
       return apiError('Campanha nao encontrada', 404)
     }
 
-    // Deletar posts da campanha primeiro
+    // Buscar calendar_entry_ids vinculados aos posts da campanha
+    const { data: postsWithCalendar } = await supabase
+      .from('campaign_posts')
+      .select('calendar_entry_id')
+      .eq('campaign_id', id)
+      .not('calendar_entry_id', 'is', null)
+
+    // Deletar entries do calendario vinculados
+    const calendarIds = (postsWithCalendar ?? [])
+      .map((p) => p.calendar_entry_id)
+      .filter(Boolean)
+
+    if (calendarIds.length > 0) {
+      await supabase
+        .from('instagram_editorial_calendar')
+        .delete()
+        .in('id', calendarIds)
+    }
+
+    // Deletar posts da campanha
     await supabase
       .from('campaign_posts')
       .delete()
