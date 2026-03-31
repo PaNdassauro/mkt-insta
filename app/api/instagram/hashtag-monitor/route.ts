@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
     return apiError('Invalid action', 400)
   } catch (err) {
-    console.error('[Hashtag Monitor]', err)
+    logger.error('Monitor error', 'Hashtag Monitor', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -144,7 +145,7 @@ async function handleSync() {
 
       synced++
     } catch (err) {
-      console.error(`[Hashtag Sync] Error for #${ht.hashtag}:`, err)
+      logger.error(`Error for #${ht.hashtag}`, 'Hashtag Sync', { error: err as Error })
     }
   }
 

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
@@ -39,7 +40,7 @@ export async function GET() {
 
     return apiSuccess({ data: results })
   } catch (err) {
-    console.error('[DashIG Competitors] Error:', err)
+    logger.error('GET error', 'DashIG Competitors', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
     return apiSuccess({ data })
   } catch (err) {
-    console.error('[DashIG Competitors POST] Error:', err)
+    logger.error('POST error', 'DashIG Competitors', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -92,7 +93,7 @@ export async function DELETE(request: Request) {
 
     return apiSuccess({ success: true })
   } catch (err) {
-    console.error('[DashIG Competitors DELETE] Error:', err)
+    logger.error('DELETE error', 'DashIG Competitors', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

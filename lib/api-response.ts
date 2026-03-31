@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 
 // ============================================================
 // Helpers padronizados para respostas de API
@@ -6,9 +7,14 @@ import { NextResponse } from 'next/server'
 
 /**
  * Resposta de sucesso padronizada.
+ * @param cacheSeconds - Se fornecido, adiciona Cache-Control com s-maxage e stale-while-revalidate.
  */
-export function apiSuccess<T>(data: T, status = 200) {
-  return NextResponse.json(data, { status })
+export function apiSuccess<T>(data: T, status = 200, cacheSeconds?: number) {
+  const headers: HeadersInit = {}
+  if (cacheSeconds && cacheSeconds > 0) {
+    headers['Cache-Control'] = `s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 2}`
+  }
+  return NextResponse.json(data, { status, headers })
 }
 
 /**
@@ -51,8 +57,7 @@ export function withErrorHandler(
     try {
       return await handler(request)
     } catch (err) {
-      const prefix = label ? `[${label}]` : '[API]'
-      console.error(`${prefix} Unhandled error:`, err)
+      logger.error('Unhandled error', label ?? 'API', { error: err as Error })
       return apiError(getErrorMessage(err))
     }
   }

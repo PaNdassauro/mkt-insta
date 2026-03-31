@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 
     return apiSuccess(data ?? [])
   } catch (err) {
-    console.error('[Comments GET]', err)
+    logger.error('GET error', 'Comments', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     // Acao padrao: sync de comentarios das midias recentes
     return handleSync()
   } catch (err) {
-    console.error('[Comments POST]', err)
+    logger.error('POST error', 'Comments', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

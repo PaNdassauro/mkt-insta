@@ -29,5 +29,5 @@ export const GET = withErrorHandler(async (request: Request) => {
   const { data, error, count } = await query
   if (error) throw error
 
-  return apiSuccess({ data, total: count })
+  return apiSuccess({ data, total: count }, 200, 3600)
 }, 'DashIG Reels')

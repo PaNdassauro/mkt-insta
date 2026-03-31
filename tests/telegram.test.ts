@@ -54,24 +54,28 @@ describe('sendTelegramMessage', () => {
   })
 
   it('logs warning on fetch failure', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockFetch.mockResolvedValueOnce({ ok: false, text: async () => 'Bad Request' })
 
     const { sendTelegramMessage } = await import('@/lib/telegram')
+    const { logger } = await import('@/lib/logger')
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
     await sendTelegramMessage('test')
 
-    expect(warnSpy).toHaveBeenCalledWith('[Telegram] Failed to send message:', 'Bad Request')
+    expect(warnSpy).toHaveBeenCalledWith('Failed to send message', 'Telegram', expect.objectContaining({ response: 'Bad Request' }))
     warnSpy.mockRestore()
   })
 
   it('logs warning on network error', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
     const { sendTelegramMessage } = await import('@/lib/telegram')
+    const { logger } = await import('@/lib/logger')
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
     await sendTelegramMessage('test')
 
-    expect(warnSpy).toHaveBeenCalledWith('[Telegram] Error sending message:', expect.any(Error))
+    expect(warnSpy).toHaveBeenCalledWith('Error sending message', 'Telegram', expect.objectContaining({ error: expect.any(Error) }))
     warnSpy.mockRestore()
   })
 })

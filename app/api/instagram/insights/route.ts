@@ -17,5 +17,5 @@ export const GET = withErrorHandler(async (request: Request) => {
 
   if (error) throw error
 
-  return apiSuccess({ data })
+  return apiSuccess({ data }, 200, 3600)
 }, 'DashIG Insights')

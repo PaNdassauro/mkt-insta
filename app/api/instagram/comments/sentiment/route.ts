@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
@@ -54,7 +55,7 @@ export async function GET() {
 
     return apiSuccess({ series, totals })
   } catch (err) {
-    console.error('[Comments Sentiment]', err)
+    logger.error('Sentiment aggregation error', 'Comments Sentiment', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from './supabase'
+import { logger } from '@/lib/logger'
 
 const BUCKET = 'story-media'
 
@@ -23,14 +24,14 @@ async function uploadToStorage(
       .upload(filePath, blob, { contentType, upsert: true })
 
     if (error) {
-      console.error(`[Storage] Upload error (${filePath}):`, error.message)
+      logger.error(`Upload error (${filePath})`, 'Storage', { message: error.message })
       return null
     }
 
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
     return data.publicUrl
   } catch (err) {
-    console.error(`[Storage] Persist error (${filePath}):`, err)
+    logger.error(`Persist error (${filePath})`, 'Storage', { error: err as Error })
     return null
   }
 }

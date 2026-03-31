@@ -80,5 +80,5 @@ export const GET = withErrorHandler(async () => {
 
   hashtags.sort((a, b) => b.impact - a.impact)
 
-  return apiSuccess({ data: hashtags })
+  return apiSuccess({ data: hashtags }, 200, 3600)
 }, 'DashIG Hashtags')

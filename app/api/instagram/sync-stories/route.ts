@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, apiError, withErrorHandler } from '@/lib/api-response'
@@ -80,7 +81,7 @@ export const POST = withErrorHandler(async (request: Request) => {
     )
 
     if (error) {
-      console.error(`Story upsert error (${story.id}):`, error.message)
+      logger.error(`Story upsert error (${story.id})`, 'DashIG Sync Stories', { message: error.message })
     } else {
       syncedCount++
     }

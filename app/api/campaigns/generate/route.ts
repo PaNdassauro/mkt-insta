@@ -1,9 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { logger } from '@/lib/logger'
 import { apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { buildPrompt, type CampaignBriefing } from '@/lib/campaign/prompt-builder'
 import { extractJSON } from '@/lib/campaign/campaign-parser'
+import { logActivity } from '@/lib/activity'
 
 /**
  * POST /api/campaigns/generate
@@ -119,6 +121,18 @@ export async function POST(request: Request) {
 
           await supabase.from('campaign_posts').insert(postRows)
 
+          // Registrar atividade
+          await logActivity({
+            action: 'campaign.created',
+            entityType: 'campaign',
+            entityId: campaign.id,
+            details: {
+              title: briefing.title,
+              postsCount: postRows.length,
+              generationTimeMs: generationTime,
+            },
+          })
+
           // Enviar metadata final como JSON separado por newline
           const metadata = JSON.stringify({
             __done: true,
@@ -133,9 +147,11 @@ export async function POST(request: Request) {
 
           controller.close()
         } catch (err) {
-          console.error('[Campaign Generate] Stream error:', err)
-          console.error('[Campaign Generate] fullText length:', fullText.length)
-          console.error('[Campaign Generate] fullText first 300:', fullText.substring(0, 300))
+          logger.error('Stream error', 'Campaign Generate', {
+            error: err as Error,
+            fullTextLength: fullText.length,
+            fullTextPreview: fullText.substring(0, 300),
+          })
 
           // Marcar campanha como DRAFT em caso de erro
           await supabase
@@ -162,7 +178,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (err) {
-    console.error('[Campaign Generate]', err)
+    logger.error('Generation failed', 'Campaign Generate', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

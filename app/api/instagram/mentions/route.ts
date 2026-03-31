@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
 
     return apiSuccess(data ?? [])
   } catch (err) {
-    console.error('[Mentions GET]', err)
+    logger.error('GET error', 'Mentions', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     // Acao padrao: sync de mencoes
     return handleSync()
   } catch (err) {
-    console.error('[Mentions POST]', err)
+    logger.error('POST error', 'Mentions', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

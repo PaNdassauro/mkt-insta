@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { extractHashtags } from '@/lib/analytics'
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
 
     return apiSuccess({ suggestions: ranked })
   } catch (err) {
-    console.error('[Hashtag Suggest]', err)
+    logger.error('Suggest error', 'Hashtag Suggest', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

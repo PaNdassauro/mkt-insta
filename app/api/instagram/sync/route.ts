@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, apiError, withErrorHandler } from '@/lib/api-response'
 import { alertTokenExpiring, alertSyncCompleted } from '@/lib/telegram'
@@ -32,7 +33,7 @@ export const POST = withErrorHandler(async (request: Request) => {
   const token = await getAccessToken()
   const { isExpiring, daysLeft } = await checkTokenExpiration()
   if (isExpiring) {
-    console.warn(`[DashIG] Token expira em ${daysLeft} dias! Renovar urgente.`)
+    logger.warn(`Token expira em ${daysLeft} dias! Renovar urgente.`, 'DashIG Sync')
     await alertTokenExpiring(daysLeft)
   }
 
@@ -107,7 +108,7 @@ export const POST = withErrorHandler(async (request: Request) => {
               },
               { onConflict: 'media_id' }
             )
-            if (error) console.error(`Reel upsert error (${item.id}):`, error.message)
+            if (error) logger.error(`Reel upsert error (${item.id})`, 'DashIG Sync', { message: error.message })
             reelsCount++
           } else {
             const engagementRate = calcEngagementRate(
@@ -138,11 +139,11 @@ export const POST = withErrorHandler(async (request: Request) => {
               },
               { onConflict: 'media_id' }
             )
-            if (error) console.error(`Post upsert error (${item.id}):`, error.message)
+            if (error) logger.error(`Post upsert error (${item.id})`, 'DashIG Sync', { message: error.message })
             postsCount++
           }
         } catch (err) {
-          console.error(`Media sync error (${item.id}):`, err)
+          logger.error(`Media sync error (${item.id})`, 'DashIG Sync', { error: err as Error })
         }
       })
     )

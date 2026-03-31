@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
@@ -25,7 +26,7 @@ export async function GET(
 
     return apiSuccess(data)
   } catch (err) {
-    console.error('[Calendar Entry GET]', err)
+    logger.error('GET error', 'Calendar Entry', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

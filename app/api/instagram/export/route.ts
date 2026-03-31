@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { calcEngagementRate } from '@/lib/analytics'
 import { apiError, getErrorMessage } from '@/lib/api-response'
@@ -105,7 +106,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (err) {
-    console.error('[DashIG Export] Error:', err)
+    logger.error('Export error', 'DashIG Export', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

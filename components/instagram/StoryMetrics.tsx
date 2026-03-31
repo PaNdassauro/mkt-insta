@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,48 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatNumber } from '@/lib/analytics'
 import type { InstagramStory } from '@/types/instagram'
 
+// ---------------------------------------------------------------------------
+// Hook: useIntersectionObserver
+// Returns a ref to attach to a DOM element and a boolean indicating visibility.
+// ---------------------------------------------------------------------------
+function useIntersectionObserver(
+  options: IntersectionObserverInit = {},
+): [React.RefCallback<HTMLElement>, boolean] {
+  const [isVisible, setIsVisible] = useState(false)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      // Cleanup previous observer
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
+      }
+
+      if (!node) return
+
+      observerRef.current = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          // Once visible, stop observing (load once)
+          observerRef.current?.disconnect()
+          observerRef.current = null
+        }
+      }, options)
+
+      observerRef.current.observe(node)
+    },
+    // Intentionally stable — options rarely change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [options.rootMargin, options.threshold],
+  )
+
+  return [ref, isVisible]
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 export default function StoryMetrics() {
   const [stories, setStories] = useState<InstagramStory[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -96,32 +138,65 @@ export default function StoryMetrics() {
         ))}
       </div>
 
-      {/* Stories por dia */}
+      {/* Stories por dia — each group lazy-loaded via IntersectionObserver */}
       {Array.from(dayGroups.entries()).map(([day, dayStories]) => (
-        <div key={day}>
-          <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            {day}
-          </h3>
-          <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            {dayStories.map((story) => (
-              <StoryCard key={story.id} story={story} />
-            ))}
-          </div>
-        </div>
+        <DayGroup key={day} day={day} stories={dayStories} />
       ))}
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// DayGroup: observed per-group; renders placeholder until visible
+// ---------------------------------------------------------------------------
+const DAY_GROUP_OBSERVER_OPTIONS: IntersectionObserverInit = {
+  rootMargin: '200px 0px',
+}
+
+function DayGroup({ day, stories }: { day: string; stories: InstagramStory[] }) {
+  const [ref, isVisible] = useIntersectionObserver(DAY_GROUP_OBSERVER_OPTIONS)
+
+  return (
+    <div ref={ref}>
+      <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+        {day}
+      </h3>
+      {isVisible ? (
+        <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+          {stories.map((story) => (
+            <StoryCard key={story.id} story={story} />
+          ))}
+        </div>
+      ) : (
+        // Placeholder that approximates the same height
+        <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+          {stories.map((story) => (
+            <Skeleton key={story.id} className="aspect-[9/16] w-full rounded-xl" />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// StoryCard
+// ---------------------------------------------------------------------------
+const CARD_OBSERVER_OPTIONS: IntersectionObserverInit = {
+  rootMargin: '100px 0px',
+}
+
 function StoryCard({ story }: { story: InstagramStory }) {
   const [showVideo, setShowVideo] = useState(false)
+  const [cardRef, isCardVisible] = useIntersectionObserver(CARD_OBSERVER_OPTIONS)
+
   const thumbUrl = story.stored_media_url ?? story.media_url
   const videoUrl = story.stored_video_url ?? (story.media_type === 'VIDEO' ? story.media_url : null)
   const isExpired = story.expires_at ? new Date(story.expires_at) < new Date() : true
   const isVideo = story.media_type === 'VIDEO'
 
   return (
-    <div className="group block">
+    <div className="group block" ref={cardRef}>
       <Card className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-200">
         {/* Media */}
         <div
@@ -142,14 +217,18 @@ function StoryCard({ story }: { story: InstagramStory }) {
               playsInline
               className="h-full w-full object-cover"
             />
-          ) : thumbUrl ? (
+          ) : isCardVisible && thumbUrl ? (
             <Image
               src={thumbUrl}
               alt="Story"
               fill
+              loading="lazy"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw"
             />
+          ) : !isCardVisible && thumbUrl ? (
+            // Placeholder while not yet in viewport
+            <div className="h-full w-full bg-muted animate-pulse" />
           ) : (
             <div className="flex h-full items-center justify-center text-2xl text-muted-foreground/30">
               {isVideo ? '🎬' : '📷'}

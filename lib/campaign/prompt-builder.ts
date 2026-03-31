@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/rag/embeddings'
 import { vectorSearch } from '@/lib/rag/vector-search'
@@ -103,7 +104,7 @@ async function gatherContext(briefing: CampaignBriefing): Promise<ContextData> {
     knowledgeChunks = results.map((r) => r.content)
     chunksUsed = results.length
   } catch (err) {
-    console.warn('[PromptBuilder] Vector search failed, continuing without:', err)
+    logger.warn('Vector search failed, continuing without', 'PromptBuilder', { error: err as Error })
   }
 
   // 2. Top posts por content score

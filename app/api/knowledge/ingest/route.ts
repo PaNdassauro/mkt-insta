@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parsePDF } from '@/lib/rag/pdf-parser'
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
       pages: parsed.numPages,
     })
   } catch (err) {
-    console.error('[Knowledge Ingest]', err)
+    logger.error('Ingest error', 'Knowledge Ingest', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateCronSecret } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { chunkText } from '@/lib/rag/chunker'
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {
-    console.error('[Knowledge Scrape]', err)
+    logger.error('Scrape error', 'Knowledge Scrape', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

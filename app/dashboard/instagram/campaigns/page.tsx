@@ -55,9 +55,14 @@ export default function CampaignsPage() {
             Gere campanhas de conteudo com IA embasada nos seus dados
           </p>
         </div>
-        <Link href="/dashboard/instagram/campaigns/new">
-          <Button>Nova Campanha</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/instagram/campaigns/compare">
+            <Button variant="outline">Comparar</Button>
+          </Link>
+          <Link href="/dashboard/instagram/campaigns/new">
+            <Button>Nova Campanha</Button>
+          </Link>
+        </div>
       </div>
 
       {campaigns.length === 0 ? (

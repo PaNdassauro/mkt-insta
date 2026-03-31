@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { sendTelegramMessage } from '@/lib/telegram'
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
 
     return apiSuccess({ message: 'Mensagem de teste enviada com sucesso' })
   } catch (err) {
-    console.error('[Settings/Telegram] Error:', err)
+    logger.error('Telegram test error', 'Settings/Telegram', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

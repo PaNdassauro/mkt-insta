@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 
 /**
  * Valida CRON_SECRET no header Authorization.
@@ -9,7 +10,7 @@ export function validateCronSecret(request: Request): NextResponse | null {
   const secret = process.env.CRON_SECRET
 
   if (!secret) {
-    console.error('[DashIG Auth] CRON_SECRET not configured')
+    logger.error('CRON_SECRET not configured', 'DashIG Auth')
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
   }
 

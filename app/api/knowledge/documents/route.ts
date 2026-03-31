@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
@@ -34,7 +35,7 @@ export async function GET() {
 
     return apiSuccess(formatted)
   } catch (err) {
-    console.error('[Knowledge Documents GET]', err)
+    logger.error('GET error', 'Knowledge Documents', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -66,7 +67,7 @@ export async function PATCH(request: Request) {
 
     return apiSuccess({ success: true, id, is_active })
   } catch (err) {
-    console.error('[Knowledge Documents PATCH]', err)
+    logger.error('PATCH error', 'Knowledge Documents', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -98,7 +99,7 @@ export async function DELETE(request: Request) {
 
     return apiSuccess({ success: true, id })
   } catch (err) {
-    console.error('[Knowledge Documents DELETE]', err)
+    logger.error('DELETE error', 'Knowledge Documents', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

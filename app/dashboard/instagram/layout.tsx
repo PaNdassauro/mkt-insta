@@ -23,6 +23,8 @@ const navItems = [
   { label: 'Knowledge Base', href: '/dashboard/instagram/knowledge', icon: '🧠' },
   { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
   { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
+  { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: '📜' },
+  { label: 'Usuarios', href: '/dashboard/instagram/settings/users', icon: '🔐' },
 ]
 
 export default function InstagramLayout({

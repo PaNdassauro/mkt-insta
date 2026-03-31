@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError } from '@/lib/api-response'
 
 const VERIFY_TOKEN = process.env.CRON_SECRET ?? 'dashig-webhook-verify'
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   const challenge = searchParams.get('hub.challenge')
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('[Webhook] Verified successfully')
+    logger.info('Verified successfully', 'Webhook')
     return new Response(challenge, { status: 200 })
   }
 
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     // Always return 200 quickly (Meta requires < 5s response)
     return apiSuccess({ status: 'ok' })
   } catch (err) {
-    console.error('[Webhook] Error:', err)
+    logger.error('Webhook processing error', 'Webhook', { error: err as Error })
     // Still return 200 to prevent Meta from retrying
     return apiSuccess({ status: 'error' })
   }
@@ -185,6 +186,6 @@ async function checkAndSendAutoReply(
         .eq('id', matchedRule.id)
     }
   } catch (err) {
-    console.error('[AutoReply] Send failed:', err)
+    logger.error('Send failed', 'AutoReply', { error: err as Error })
   }
 }

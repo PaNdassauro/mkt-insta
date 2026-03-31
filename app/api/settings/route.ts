@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { checkTokenExpiration } from '@/lib/meta-client'
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (err) {
-    console.error('[Settings] Error:', err)
+    logger.error('Settings error', 'Settings', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     // Por enquanto, endpoint de teste — configuracoes vem de env vars
     return apiSuccess({ message: 'Configuracoes salvas com sucesso' })
   } catch (err) {
-    console.error('[Settings] Error:', err)
+    logger.error('Settings error', 'Settings', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -1,6 +1,8 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity'
 
 /**
  * POST /api/campaigns/[id]/schedule
@@ -66,7 +68,7 @@ export async function POST(
         .single()
 
       if (calErr) {
-        console.error(`[Schedule] Error creating calendar entry for post ${post.id}:`, calErr)
+        logger.error(`Error creating calendar entry for post ${post.id}`, 'Schedule', { error: calErr })
         continue
       }
 
@@ -85,9 +87,21 @@ export async function POST(
       .update({ status: 'SCHEDULED', updated_at: new Date().toISOString() })
       .eq('id', id)
 
+    // Registrar atividade de agendamento
+    await logActivity({
+      action: 'campaign.scheduled',
+      entityType: 'campaign',
+      entityId: id,
+      details: {
+        title: campaign.title,
+        count: scheduled,
+        total: posts.length,
+      },
+    })
+
     return apiSuccess({ scheduled, total: posts.length })
   } catch (err) {
-    console.error('[Campaign Schedule]', err)
+    logger.error('Schedule error', 'Campaign Schedule', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

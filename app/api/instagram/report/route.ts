@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { generateMonthlyReport, reportToHtml } from '@/lib/report-generator'
 import { Resend } from 'resend'
 import { validateCronSecret } from '@/lib/auth'
@@ -13,7 +14,7 @@ export async function GET() {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   } catch (err) {
-    console.error('[DashIG Report GET] Error:', err)
+    logger.error('GET error', 'DashIG Report', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       month: `${report.month} ${report.year}`,
     })
   } catch (err) {
-    console.error('[DashIG Report POST] Error:', err)
+    logger.error('POST error', 'DashIG Report', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

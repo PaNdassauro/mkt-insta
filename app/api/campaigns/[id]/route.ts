@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
@@ -26,7 +27,7 @@ export async function GET(
 
     return apiSuccess(data)
   } catch (err) {
-    console.error('[Campaign GET]', err)
+    logger.error('GET error', 'Campaign GET', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -69,7 +70,7 @@ export async function PATCH(
 
     return apiSuccess(data)
   } catch (err) {
-    console.error('[Campaign PATCH]', err)
+    logger.error('PATCH error', 'Campaign PATCH', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -85,7 +85,8 @@ describe('withErrorHandler', () => {
   })
 
   it('catches errors and returns 500', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { logger } = await import('@/lib/logger')
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     const handler = withErrorHandler(async () => {
       throw new Error('handler exploded')
@@ -97,11 +98,12 @@ describe('withErrorHandler', () => {
     const body = await res.json()
     expect(body.error).toBe('handler exploded')
 
-    consoleSpy.mockRestore()
+    logSpy.mockRestore()
   })
 
-  it('uses label prefix in console.error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('calls logger.error with label context', async () => {
+    const { logger } = await import('@/lib/logger')
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     const handler = withErrorHandler(async () => {
       throw new Error('fail')
@@ -110,12 +112,13 @@ describe('withErrorHandler', () => {
     const req = new Request('http://localhost/api/test')
     await handler(req)
 
-    expect(consoleSpy).toHaveBeenCalledWith('[MyRoute] Unhandled error:', expect.any(Error))
-    consoleSpy.mockRestore()
+    expect(logSpy).toHaveBeenCalledWith('Unhandled error', 'MyRoute', expect.objectContaining({ error: expect.any(Error) }))
+    logSpy.mockRestore()
   })
 
-  it('uses default [API] prefix when no label', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('uses default API context when no label', async () => {
+    const { logger } = await import('@/lib/logger')
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     const handler = withErrorHandler(async () => {
       throw new Error('fail')
@@ -124,7 +127,7 @@ describe('withErrorHandler', () => {
     const req = new Request('http://localhost/api/test')
     await handler(req)
 
-    expect(consoleSpy).toHaveBeenCalledWith('[API] Unhandled error:', expect.any(Error))
-    consoleSpy.mockRestore()
+    expect(logSpy).toHaveBeenCalledWith('Unhandled error', 'API', expect.objectContaining({ error: expect.any(Error) }))
+    logSpy.mockRestore()
   })
 })

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
@@ -46,7 +47,7 @@ export async function POST(
 
     return apiSuccess({ linked: media_ids.length, media_type })
   } catch (err) {
-    console.error('[Campaign Media Link]', err)
+    logger.error('Media link error', 'Campaign Media Link', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -88,7 +89,7 @@ export async function DELETE(
 
     return apiSuccess({ unlinked: media_ids.length })
   } catch (err) {
-    console.error('[Campaign Media Unlink]', err)
+    logger.error('Media unlink error', 'Campaign Media Unlink', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

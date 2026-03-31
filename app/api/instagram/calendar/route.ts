@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 
     return apiSuccess({ data })
   } catch (err) {
-    console.error('[DashIG Calendar GET] Error:', err)
+    logger.error('GET error', 'DashIG Calendar', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     if (error) throw error
     return apiSuccess({ data })
   } catch (err) {
-    console.error('[DashIG Calendar POST] Error:', err)
+    logger.error('POST error', 'DashIG Calendar', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -111,7 +112,7 @@ export async function PUT(request: Request) {
     if (error) throw error
     return apiSuccess({ data })
   } catch (err) {
-    console.error('[DashIG Calendar PUT] Error:', err)
+    logger.error('PUT error', 'DashIG Calendar', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -131,7 +132,7 @@ export async function DELETE(request: Request) {
 
     return apiSuccess({ success: true })
   } catch (err) {
-    console.error('[DashIG Calendar DELETE] Error:', err)
+    logger.error('DELETE error', 'DashIG Calendar', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

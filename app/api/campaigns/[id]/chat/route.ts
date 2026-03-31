@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
@@ -84,7 +85,7 @@ ${(posts ?? []).map((p) => `#${p.post_order} [${p.format}] ${p.scheduled_for ? n
 
     return apiSuccess({ message: assistantMessage })
   } catch (err) {
-    console.error('[Campaign Chat]', err)
+    logger.error('Chat error', 'Campaign Chat', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -107,7 +108,7 @@ export async function GET(
       report_type: isComplete ? 'FINAL' : 'PARTIAL',
     })
   } catch (err) {
-    console.error('[Campaign Report]', err)
+    logger.error('Report error', 'Campaign Report', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

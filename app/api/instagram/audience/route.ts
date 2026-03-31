@@ -13,5 +13,5 @@ export const GET = withErrorHandler(async () => {
 
   if (error && error.code !== 'PGRST116') throw error
 
-  return apiSuccess({ data: data ?? null })
+  return apiSuccess({ data: data ?? null }, 200, 3600)
 }, 'DashIG Audience')

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -25,7 +26,7 @@ export async function GET(
 
     return apiSuccess(data ?? [])
   } catch (err) {
-    console.error('[Campaign Posts GET]', err)
+    logger.error('GET error', 'Campaign Posts', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

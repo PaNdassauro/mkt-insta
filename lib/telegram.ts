@@ -6,6 +6,8 @@
  *   TELEGRAM_CHAT_ID   - Chat ID do grupo/usuario que recebe alertas
  */
 
+import { logger } from '@/lib/logger'
+
 const TELEGRAM_API = 'https://api.telegram.org/bot'
 
 function getConfig() {
@@ -36,10 +38,10 @@ export async function sendTelegramMessage(text: string, parseMode: 'HTML' | 'Mar
 
     if (!res.ok) {
       const err = await res.text()
-      console.warn('[Telegram] Failed to send message:', err)
+      logger.warn('Failed to send message', 'Telegram', { response: err })
     }
   } catch (err) {
-    console.warn('[Telegram] Error sending message:', err)
+    logger.warn('Error sending message', 'Telegram', { error: err as Error })
   }
 }
 

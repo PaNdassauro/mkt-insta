@@ -1,7 +1,9 @@
+import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { alertCampaignApproved } from '@/lib/telegram'
+import { logActivity } from '@/lib/activity'
 
 /**
  * PATCH /api/campaigns/[id]/posts/[postId]
@@ -68,12 +70,23 @@ export async function PATCH(
           .eq('id', id)
           .single()
         await alertCampaignApproved(campaign?.title ?? 'Sem titulo', allPosts.length)
+
+        // Registrar atividade de aprovacao da campanha
+        await logActivity({
+          action: 'campaign.approved',
+          entityType: 'campaign',
+          entityId: id,
+          details: {
+            title: campaign?.title ?? 'Sem titulo',
+            count: allPosts.length,
+          },
+        })
       }
     }
 
     return apiSuccess(data)
   } catch (err) {
-    console.error('[Campaign Post PATCH]', err)
+    logger.error('PATCH error', 'Campaign Post', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }

@@ -82,10 +82,7 @@ export interface InstagramStory {
   expires_at: string | null
   reach: number
   impressions: number
-  exits: number
   replies: number
-  taps_forward: number
-  taps_back: number
   navigation: number
   follows: number
   profile_visits: number

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
@@ -39,7 +40,7 @@ export async function GET() {
 
     return apiSuccess(conversations)
   } catch (err) {
-    console.error('[Messages GET]', err)
+    logger.error('GET error', 'Messages', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
 
     return apiSuccess(msg)
   } catch (err) {
-    console.error('[Messages POST]', err)
+    logger.error('POST error', 'Messages', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
