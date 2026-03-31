@@ -127,6 +127,13 @@ export async function DELETE(request: Request) {
     if (!id) return apiError('id is required', 400)
 
     const supabase = createServerSupabaseClient()
+
+    // Limpar referencia em campaign_posts antes de deletar (FK sem CASCADE)
+    await supabase
+      .from('campaign_posts')
+      .update({ calendar_entry_id: null })
+      .eq('calendar_entry_id', id)
+
     const { error } = await supabase.from('instagram_editorial_calendar').delete().eq('id', id)
     if (error) throw error
 
