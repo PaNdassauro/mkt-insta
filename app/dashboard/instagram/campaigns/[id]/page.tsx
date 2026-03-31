@@ -65,10 +65,13 @@ export default function CampaignEditorPage() {
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' })
       if (res.ok) {
-        router.push('/dashboard/instagram/campaigns')
+        router.replace('/dashboard/instagram/campaigns')
+      } else {
+        const data = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
+        alert(`Erro ao deletar: ${data.error}`)
       }
     } catch {
-      // silent
+      alert('Erro de conexao ao deletar campanha')
     } finally {
       setDeleting(false)
     }

@@ -52,7 +52,7 @@ export default function EditorialCalendar() {
   const fetchEntries = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/instagram/calendar?month=${currentMonth}`)
+      const res = await fetch(`/api/instagram/calendar?month=${currentMonth}`, { cache: 'no-store' })
       const json = await res.json()
       setEntries(json.data ?? [])
     } catch { toast.error('Erro ao carregar calendario') }
@@ -87,10 +87,17 @@ export default function EditorialCalendar() {
   }
 
   const deleteEntry = async (id: string) => {
+    if (!confirm('Excluir esta entrada do calendario?')) return
     try {
-      await fetch(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
-      await fetchEntries()
-    } catch { toast.error('Erro na operacao') }
+      const res = await fetch(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Entrada excluida')
+        await fetchEntries()
+      } else {
+        const data = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
+        toast.error(`Erro ao excluir: ${data.error}`)
+      }
+    } catch { toast.error('Erro de conexao ao excluir') }
   }
 
   const setMediaUrl = async (id: string) => {
