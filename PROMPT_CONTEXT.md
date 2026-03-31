@@ -38,12 +38,20 @@ Resolve o problema de producao de campanhas:
 
 ## 3. Usuarios do sistema
 
-| Perfil | Necessidade |
+O sistema possui tres papeis com controle de acesso (tabela `user_roles`):
+
+| Role | Permissoes |
 |---|---|
-| Gestor de Marketing (Marcelo) | Visao executiva de performance mensal, tendencias, benchmarks e aprovacao de campanhas |
-| Social Media / Analista | Operacional: posts que performaram, melhores horarios, hashtags, revisao e edicao de campanhas |
-| Designer | Recebe briefs de imagem dos posts aprovados para producao de assets |
-| Diretoria | Relatorio mensal consolidado (PDF automatico por email) |
+| **admin** | Acesso total. Gerencia usuarios, configura sistema, exporta dados |
+| **editor** | Cria e edita campanhas, agenda posts, gerencia calendario e comentarios |
+| **viewer** | Acesso somente leitura a dashboards e relatorios |
+
+| Perfil | Role | Necessidade |
+|---|---|---|
+| Gestor de Marketing (Marcelo) | admin | Visao executiva de performance mensal, tendencias, benchmarks, aprovacao de campanhas e gestao de usuarios |
+| Social Media / Analista | editor | Operacional: posts que performaram, melhores horarios, hashtags, revisao e edicao de campanhas |
+| Designer | viewer | Recebe briefs de imagem dos posts aprovados para producao de assets |
+| Diretoria | viewer | Relatorio mensal consolidado (PDF automatico por email) |
 
 ---
 
@@ -133,10 +141,10 @@ Cada campanha contem:
       |
 6. Posts fluem para o Calendario Editorial existente
       |
-7. Time publica manualmente seguindo o calendario
+7. Publicacao manual pelo calendario OU automatica via auto-publish (opt-in)
 ```
 
-**Importante**: a IA gera um ponto de partida qualificado — o analista tem controle total. Nenhum post e publicado automaticamente.
+**Importante**: a IA gera um ponto de partida qualificado — o analista tem controle total. A publicacao pode ser manual (seguindo o calendario) ou automatica via opt-in: entradas com `auto_publish = true`, status `APPROVED`, `scheduled_for <= now` e `media_url` preenchida sao publicadas automaticamente por um cron que roda a cada 30 minutos.
 
 ### 5.5 Terminologia do Campaign Studio
 
@@ -151,6 +159,30 @@ Cada campanha contem:
 | **Edicao nao-destrutiva** | Editar `caption_edited` sem sobrescrever `caption` (output original preservado) |
 | **Campaign Editor** | Interface de revisao e edicao da campanha gerada |
 | **Agendamento** | Envio dos posts aprovados para o Calendario Editorial do DashIG |
+
+### 5.6 Funcionalidades adicionais do Campaign Studio
+
+| Funcionalidade | Descricao |
+|---|---|
+| **Strategy Chat Panel** | Chat com IA (Claude) integrado na pagina da campanha para discutir estrategia, ajustar abordagem e tirar duvidas sobre a campanha gerada |
+| **Comparacao de campanhas** | Pagina dedicada para comparar campanhas lado a lado por tags, com metricas agregadas e radar chart (Recharts) |
+| **Agendamento no calendario** | Posts aprovados de uma campanha sao enviados diretamente para o calendario editorial via `/api/campaigns/[id]/schedule` |
+| **Activity logging** | Eventos de campanha (criacao, aprovacao, agendamento) sao registrados na tabela `activity_log` |
+
+### 5.7 Funcionalidades de Analytics avancado (Sprints 6-9)
+
+| Funcionalidade | Descricao |
+|---|---|
+| **Grafico de sentimento** | Distribuicao semanal de sentimento dos comentarios (positive/neutral/negative/question) nos ultimos 90 dias |
+| **Sugestao inteligente de hashtags** | Endpoint que sugere top 15 hashtags com base na caption e performance historica (reach x engagement) |
+| **Notificacoes Telegram** | Bot do Telegram envia alertas configurados (ex.: sync concluido, erros). Configuravel via Settings |
+| **Logging estruturado** | Modulo `lib/logger.ts` com JSON em producao (compativel com Vercel Log Drain) e formato legivel em dev |
+| **Roles de usuario** | Sistema de papeis (admin/editor/viewer) com tabela `user_roles` e funcao `get_user_role()`. Admin gerencia usuarios em Settings > Usuarios |
+| **Log de atividades** | Tabela `activity_log` com registro de acoes (login, criacao, aprovacao, etc.) e pagina de consulta em Settings > Atividades |
+| **Motor de recomendacoes** | Endpoint `/api/instagram/recommendations` analisa dados historicos e retorna 3-5 recomendacoes acionaveis (timing, formato, gaps, temas, tendencias) |
+| **Monitoramento automatico de concorrentes** | Cron semanal (`sync-competitors`) busca dados publicos de concorrentes com `ig_user_id` via Meta Graph API |
+| **Dashboard de saude do sistema** | Pagina Settings > Sistema com status do token Meta, ultimos syncs, cron jobs, estatisticas do banco e storage |
+| **Exportacao administrativa** | Endpoint `/api/admin/export-all` exporta dados completos (posts, reels, stories, campanhas, comentarios, snapshots) em CSV |
 
 ---
 
@@ -177,6 +209,8 @@ Cada campanha contem:
 | `dashig-sync-audience` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-audience |
 | `dashig-report-monthly` | `0 8 1 * *` (dia 1, 5h BRT) | POST /api/instagram/report |
 | `dashig-knowledge-scrape` | `0 6 * * 1` (seg 6h BRT) | POST /api/knowledge/scrape |
+| `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | POST /api/instagram/auto-publish |
+| `dashig-sync-competitors` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-competitors |
 
 ---
 
@@ -184,13 +218,13 @@ Cada campanha contem:
 
 1. **Nunca deletar dados historicos** — apenas upsert (ON CONFLICT DO UPDATE).
 2. **Stories persistidos** — thumbnails e videos salvos no Supabase Storage (bucket `story-media`). Sobrevivem a expiracao de 24h.
-3. **Concorrentes = dados publicos apenas** — CRUD manual, sem scraping automatico.
+3. **Concorrentes = dados publicos apenas** — CRUD manual + sync automatico semanal via Meta Graph API para concorrentes com `ig_user_id` cadastrado.
 4. **Views > Plays nos Reels** — desde abril/2025.
 5. **QEI calculado no frontend** — runtime para ajuste de pesos.
 6. **Content Score em batch** — 4 queries por tier no sync, nunca N queries individuais.
 7. **Auth centralizada** — `validateCronSecret()` de `lib/auth.ts` em toda rota de sync e knowledge.
 8. **Audiencia em %** — API retorna absolutos, convertemos para % antes de salvar.
-9. **IA nunca publica** — o sistema gera e agenda no calendario. Publicacao e sempre manual.
+9. **IA gera e agenda, nao publica diretamente** — a IA gera campanhas e agenda no calendario. A publicacao e manual ou via auto-publish (opt-in por entrada, cron a cada 30 min).
 10. **Edicao nao-destrutiva** — `caption_edited`/`hashtags_edited` preservam o output original da IA.
 11. **Documentos inativos nao alimentam a IA** — `is_active = FALSE` desativa sem deletar.
 12. **API Keys de IA sao server-only** — `OPENAI_API_KEY` e `ANTHROPIC_API_KEY` nunca expostos no client.
@@ -199,12 +233,12 @@ Cada campanha contem:
 
 ## 8. O que NAO esta no escopo
 
-- Publicacao automatica via API (requer `instagram_content_publish` + App Review da Meta — planejado, ver ARCHITECTURE.md secao 14)
+- ~~Publicacao automatica via API~~ (IMPLEMENTADA — ver ARCHITECTURE.md secao 14)
 - Analytics de Instagram Ads (Meta Ads API — escopo futuro)
 - Multi-conta (apenas @welcomeweddings)
 - App mobile
 - Integracao com outras redes sociais (TikTok, LinkedIn — escopo futuro)
-- Scraping automatico de concorrentes (apenas CRUD manual)
+- ~~Scraping automatico de concorrentes~~ (IMPLEMENTADO — sync semanal via cron para concorrentes com ig_user_id)
 - Geracao automatica de imagens/videos (apenas briefs textuais para o designer)
 - Integracao com Canva API (previsto para versao futura)
 - Aprovacao em multiplos niveis hierarquicos (workflow complexo — escopo futuro)

@@ -1,12 +1,16 @@
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/knowledge/documents
  * Lista todos os documentos da Knowledge Base com contagem de chunks.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const supabase = createServerSupabaseClient()
 
@@ -46,6 +50,9 @@ export async function GET() {
  * Body: { id: string, is_active: boolean }
  */
 export async function PATCH(request: Request) {
+  const authErrorPatch = validateDashboardRequest(request)
+  if (authErrorPatch) return authErrorPatch
+
   try {
     const body = await request.json()
     const { id, is_active } = body
@@ -78,6 +85,9 @@ export async function PATCH(request: Request) {
  * Body: { id: string }
  */
 export async function DELETE(request: Request) {
+  const authErrorDelete = validateDashboardRequest(request)
+  if (authErrorDelete) return authErrorDelete
+
   try {
     const body = await request.json()
     const { id } = body

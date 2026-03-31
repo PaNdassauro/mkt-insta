@@ -1,15 +1,19 @@
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/instagram/messages/[conversationId]
  * Lista mensagens de uma conversa.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { conversationId } = await params
     const supabase = createServerSupabaseClient()

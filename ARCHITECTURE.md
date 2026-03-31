@@ -29,7 +29,7 @@ O projeto segue os mesmos padroes arquiteturais do DashWT (dashboard de vendas d
 | Graficos | Recharts |
 | Backend | Next.js API Routes (Route Handlers) |
 | Banco de dados | Supabase (PostgreSQL + pgvector) |
-| Auth | CRON_SECRET via lib/auth.ts (centralizado) |
+| Auth | Supabase Auth (login/sessao) + CRON_SECRET (cron jobs) via lib/auth.ts |
 | Fonte de dados | Meta Graph API v21.0 (Instagram Graph API) |
 | Deploy | Vercel |
 | Cron Jobs | Supabase pg_cron + pg_net |
@@ -106,6 +106,10 @@ Supabase pgvector (document_chunks)
       /mentions/page.tsx               <- Mencoes e tags + galeria UGC
       /hashtag-monitor/page.tsx        <- Monitoramento de hashtags (top/recent media)
       /report/page.tsx                  <- Relatorio PDF mensal
+      /settings/page.tsx               <- Configuracoes gerais (token, Telegram, crons)
+      /settings/users/page.tsx         <- Gestao de usuarios e roles (admin only)
+      /settings/activity/page.tsx      <- Log de atividades do sistema
+      /settings/system/page.tsx        <- Dashboard de saude do sistema
 ```
 
 ### 4.2 Campaign Studio (novo)
@@ -119,6 +123,8 @@ Supabase pgvector (document_chunks)
           page.tsx                      <- Briefing form (step 1)
           /generating
             page.tsx                    <- Streaming de geracao (step 2)
+        /compare
+          page.tsx                      <- Comparacao de campanhas (metricas + radar chart)
         /[id]
           page.tsx                      <- Campaign Editor — revisao e aprovacao (step 3)
           /report
@@ -127,19 +133,22 @@ Supabase pgvector (document_chunks)
         page.tsx                        <- Gestao da Knowledge Base (upload de PDFs, status)
 ```
 
-### 4.3 API Routes
+### 4.3 API Routes (~49 route files)
 ```
 /app/api/instagram
   /sync/route.ts                        <- Cron principal
   /sync-stories/route.ts                <- Cron stories
   /sync-audience/route.ts               <- Cron audiencia semanal
+  /sync-competitors/route.ts           <- Cron semanal — sync de concorrentes via Meta Graph API
   /posts/route.ts
   /reels/route.ts
   /stories/route.ts
   /insights/route.ts
   /audience/route.ts
   /hashtags/route.ts
+  /hashtags/suggest/route.ts           <- GET sugestao inteligente de hashtags por caption
   /competitors/route.ts
+  /competitor-snapshots/route.ts       <- GET snapshots de concorrentes
   /calendar/route.ts                    <- GET/POST/PUT/DELETE (recebe posts do Campaign Studio)
   /calendar/[id]/route.ts              <- GET entrada individual do calendario
   /report/route.ts
@@ -148,17 +157,13 @@ Supabase pgvector (document_chunks)
   /publish/route.ts                     <- POST publica no Instagram via Meta API
   /auto-publish/route.ts               <- POST cron que publica automaticamente posts agendados
   /comments/route.ts                   <- GET lista + POST sync/reply/hide/delete comentarios
+  /comments/sentiment/route.ts         <- GET distribuicao de sentimento agregada por semana
   /mentions/route.ts                   <- GET lista + POST sync/save mencoes e tags
   /messages/route.ts                   <- GET conversas + POST enviar DM
   /messages/[conversationId]/route.ts  <- GET mensagens de uma conversa
   /auto-reply/route.ts                <- CRUD regras de auto-reply
   /hashtag-monitor/route.ts           <- GET/POST monitoramento de hashtags
-
-/app/api/webhooks
-  /instagram/route.ts                  <- GET verify + POST events (Meta webhooks)
-  /messages/route.ts                    <- GET conversas / POST enviar resposta via Instagram API
-  /messages/[conversationId]/route.ts   <- GET mensagens de uma conversa
-  /auto-reply/route.ts                  <- GET/POST/PUT/DELETE regras de auto-reply
+  /recommendations/route.ts           <- GET recomendacoes acionaveis (timing, formato, gaps, temas)
 
 /app/api/webhooks
   /instagram/route.ts                   <- GET verify + POST recebe eventos (messages, comments)
@@ -175,10 +180,21 @@ Supabase pgvector (document_chunks)
   /[id]/report/route.ts                <- GET relatorio da campanha (parcial ou final)
   /[id]/media/route.ts                 <- POST/DELETE vincular midias reais a campanha
 
-/app/api/knowledge                      <- (novo — RAG)
+/app/api/knowledge                      <- (RAG)
   /ingest/route.ts                      <- Upload e ingestao de PDFs
   /scrape/route.ts                      <- Dispara scraping do site (manual ou cron)
   /documents/route.ts                   <- GET lista / PATCH toggle ativo
+
+/app/api/settings
+  /route.ts                             <- GET configuracoes gerais (token, telegram, etc.)
+  /telegram-test/route.ts              <- POST teste de conexao do Telegram
+  /users/route.ts                       <- GET/POST/PATCH/DELETE gestao de usuarios (admin only)
+  /activity/route.ts                    <- GET log de atividades com filtros
+  /accounts/route.ts                    <- CRUD contas Instagram (multi-account prep)
+  /system/route.ts                      <- GET saude do sistema (token, syncs, db stats, storage)
+
+/app/api/admin
+  /export-all/route.ts                  <- GET exportacao completa de dados (CSV)
 ```
 
 ### 4.4 Lib
@@ -192,6 +208,13 @@ Supabase pgvector (document_chunks)
   report-generator.ts                   <- Geracao de relatorio HTML mensal
   constants.ts                          <- Constantes (API URL, pesos, cores, formatadores)
   utils.ts                              <- cn() para classes Tailwind
+  logger.ts                             <- Logging estruturado (JSON em prod, ANSI em dev)
+  telegram.ts                           <- Envio de notificacoes via Telegram Bot API
+  roles.ts                              <- getUserRole() e helpers de controle de acesso
+  activity.ts                           <- logActivity() para registro no activity_log
+  api-response.ts                       <- Helpers padronizados (apiSuccess, apiError, withErrorHandler)
+  supabase-browser.ts                   <- Cliente Supabase para Client Components
+  supabase-middleware.ts                <- Middleware de sessao Supabase Auth
   rag/
     embeddings.ts                       <- (novo) Wrapper OpenAI Embeddings API
     chunker.ts                          <- (novo) Chunking de texto (512 tokens, overlap 64)
@@ -262,6 +285,13 @@ Supabase pgvector (document_chunks)
 | `instagram_competitors` | Concorrentes monitorados | `username` |
 | `instagram_competitor_snapshots` | Snapshots de concorrentes | `(competitor_id, date)` |
 | `instagram_editorial_calendar` | Planejamento editorial — recebe posts do Campaign Studio | `id` |
+| `instagram_comments` | Comentarios sincronizados | `comment_id` |
+| `instagram_mentions` | Mencoes e tags da marca | `media_id` |
+| `monitored_hashtags` | Hashtags monitoradas | `hashtag` |
+| `hashtag_snapshots` | Snapshots de hashtags (top/recent media) | `(hashtag_id, date)` |
+| `user_roles` | Papeis de usuario (admin/editor/viewer) | `user_id` |
+| `activity_log` | Log de atividades do sistema | `id` |
+| `instagram_accounts` | Contas Instagram cadastradas (multi-account prep) | `ig_user_id` |
 | `app_config` | Configuracao (tokens, etc.) | `key` |
 
 Schema das tabelas existentes: `supabase/migrations/001_initial_schema.sql`
@@ -421,6 +451,16 @@ idx_campaigns_status ON instagram_campaigns(status)
 | `009_publishing_enhancements.sql` | location_id, user_tags, alt_text, collaborators, cover_url, auto_publish |
 | `010_campaign_tags_and_grouping.sql` | tags nas campanhas, campaign_id em posts/reels/stories (GIN index) |
 | `011_messaging.sql` | conversations, messages, auto_reply_rules, reply_templates, webhook_events |
+| `012_comments_mentions.sql` | instagram_comments, instagram_mentions |
+| `013_hashtag_monitoring.sql` | monitored_hashtags, hashtag_snapshots |
+| `014_rls_policies.sql` | Row Level Security em todas as tabelas |
+| `015_remove_deprecated_story_fields.sql` | Remove campos deprecados de stories |
+| `016_user_roles.sql` | Tabela user_roles (admin/editor/viewer) + funcao get_user_role() |
+| `017_activity_log.sql` | Tabela activity_log com indices por data e entidade |
+| `018_audit_trail.sql` | Campos de auditoria adicionais |
+| `019_competitor_ig_user_id.sql` | ig_user_id em competitors + media_count em snapshots |
+| `020_multi_account.sql` | Tabela instagram_accounts (preparacao multi-conta) |
+| `021_seed_admin_user.sql` | Seed do usuario admin inicial |
 
 ---
 
@@ -461,7 +501,9 @@ idx_campaigns_status ON instagram_campaigns(status)
 | `dashig-sync-stories` | `0 14 * * *` (11h BRT) | Stories ativos + persistencia de thumbs/videos no Supabase Storage |
 | `dashig-sync-audience` | `0 11 * * 1` (seg 8h BRT) | Snapshot demografico via `follower_demographics` (numeros convertidos para %) |
 | `dashig-report-monthly` | `0 8 1 * *` (dia 1, 5h BRT) | Gera relatorio HTML e envia por email via Resend |
-| `dashig-knowledge-scrape` | `0 6 * * 1` (seg 6h BRT) | (novo) Re-indexa o site da Welcome Weddings no pgvector |
+| `dashig-knowledge-scrape` | `0 6 * * 1` (seg 6h BRT) | Re-indexa o site da Welcome Weddings no pgvector |
+| `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | Publica entradas com auto_publish=true e scheduled_for <= now |
+| `dashig-sync-competitors` | `0 11 * * 1` (seg 8h BRT) | Sync de perfis publicos de concorrentes via Meta Graph API |
 
 Gerenciar: `SELECT * FROM cron.job WHERE jobname LIKE 'dashig-%';`
 Historico: `SELECT * FROM cron.job_run_details WHERE jobname LIKE 'dashig-%' ORDER BY start_time DESC LIMIT 20;`
@@ -615,6 +657,67 @@ O time de social visualiza os posts agendados no calendario editorial existente 
 
 ---
 
+## 10A. Motor de Recomendacoes
+
+O endpoint `GET /api/instagram/recommendations` analisa dados historicos dos ultimos 30 dias e retorna 3-5 recomendacoes acionaveis:
+
+| Tipo | O que analisa |
+|---|---|
+| `timing` | Melhores dias/horarios com base em engagement historico vs. frequencia de postagem |
+| `format` | Qual formato (Reel, Carrossel, Imagem) tem melhor performance atual |
+| `gap` | Periodos sem postagem ou formatos subutilizados |
+| `theme` | Temas e hashtags com tendencia de alta |
+| `trend` | Mudancas significativas em metricas (ex.: queda de reach, alta de saves) |
+
+Cada recomendacao inclui `confidence` (high/medium/low) e `data` com os numeros que embasam a sugestao.
+
+---
+
+## 10B. Integracao Telegram
+
+Notificacoes via Telegram Bot API (`lib/telegram.ts`):
+
+- **Configuracao**: `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` nas variaveis de ambiente
+- **Teste**: `POST /api/settings/telegram-test` envia mensagem de teste
+- **Uso**: alertas de sync, erros criticos, e eventos configurados
+- **Formato**: HTML (bold, links) suportado pela Telegram API
+
+---
+
+## 10C. Roles de Usuario e Log de Atividades
+
+### Roles
+Tabela `user_roles` com tres niveis: `admin`, `editor`, `viewer`. Funcao SQL `get_user_role(uid)` retorna o role (default: `viewer`).
+
+- **Admin**: gerencia usuarios, configura sistema, exporta dados
+- **Editor**: cria/edita campanhas, agenda posts, gerencia comentarios
+- **Viewer**: somente leitura
+
+API: `GET/POST/PATCH/DELETE /api/settings/users` (requer admin).
+
+### Log de Atividades
+Tabela `activity_log` registra acoes com `user_id`, `action`, `entity_type`, `entity_id` e `details` (JSONB).
+
+API: `GET /api/settings/activity` com filtros por `entity_type`, `user_id` e `since`.
+Pagina: `/dashboard/instagram/settings/activity`
+
+---
+
+## 10D. Monitoramento de Saude do Sistema
+
+Pagina `/dashboard/instagram/settings/system` e API `GET /api/settings/system`:
+
+| Dado | O que mostra |
+|---|---|
+| Token Meta | Status (valid/expiring) e dias restantes |
+| Ultimos syncs | Data da ultima execucao de cada tipo de sync |
+| Cron jobs | Lista de jobs ativos com schedule |
+| Telegram | Se esta configurado |
+| DB stats | Contagem de posts, reels, stories, campanhas, comentarios |
+| Storage | Quantidade de arquivos no bucket story-media |
+
+---
+
 ## 11. Variaveis de Ambiente
 
 ```env
@@ -639,6 +742,10 @@ CRON_SECRET=                 # Min 32 chars em producao
 # IA (Campaign Studio) — server-only
 OPENAI_API_KEY=              # Apenas para embeddings (text-embedding-3-small)
 ANTHROPIC_API_KEY=           # Geracao de campanhas (Claude)
+
+# Telegram (notificacoes)
+TELEGRAM_BOT_TOKEN=          # Token do bot criado via @BotFather
+TELEGRAM_CHAT_ID=            # ID do chat/grupo para receber alertas
 
 # Site para scraping
 WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
@@ -727,8 +834,6 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 - [x] Rastreamento de mencoes e tags da marca
 - [x] Pagina de UGC com galeria de midias e save/unsave
 
-### Proximos passos (backlog)
-
 ### Sprint 4: Hashtags + Performance (CONCLUIDA)
 - [x] Monitoramento de hashtags via API (ig_hashtag_search + top/recent media)
 - [x] Dashboard de hashtags com detail view (top posts + recent posts)
@@ -743,10 +848,43 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 - [x] Unit tests (vitest): campaign-parser, chunker, auth (23 tests)
 - [x] Script npm test / npm test:watch
 
+### Sprint 6: Sentimento, Hashtag Suggest, Telegram (CONCLUIDA)
+- [x] Grafico de distribuicao de sentimento dos comentarios (ultimos 90 dias)
+- [x] API `/api/instagram/comments/sentiment` (agregacao por semana)
+- [x] Sugestao inteligente de hashtags por caption (`/api/instagram/hashtags/suggest`)
+- [x] Integracao Telegram (`lib/telegram.ts` + `sendTelegramMessage()`)
+- [x] Endpoint de teste Telegram (`/api/settings/telegram-test`)
+- [x] Logging estruturado (`lib/logger.ts`) — JSON em producao, ANSI em dev
+
+### Sprint 7: Roles, Activity Log, RLS (CONCLUIDA)
+- [x] Tabela `user_roles` (admin/editor/viewer) com funcao SQL `get_user_role()`
+- [x] `lib/roles.ts` com `getUserRole()` e helpers
+- [x] API `/api/settings/users` (CRUD, admin only)
+- [x] Pagina `/settings/users` para gestao de usuarios
+- [x] Tabela `activity_log` com indices
+- [x] `lib/activity.ts` com `logActivity()`
+- [x] API `/api/settings/activity` com filtros
+- [x] Pagina `/settings/activity`
+- [x] Migration 014: RLS policies em todas as tabelas
+
+### Sprint 8: Recomendacoes, Competidores, Saude (CONCLUIDA)
+- [x] Motor de recomendacoes (`/api/instagram/recommendations`) — timing, formato, gaps, temas, tendencias
+- [x] Sync automatico de concorrentes (`/api/instagram/sync-competitors`) via cron semanal
+- [x] Migration 019: `ig_user_id` em competitors para lookup via Meta Graph API
+- [x] Dashboard de saude do sistema (`/settings/system`)
+- [x] API `/api/settings/system` (token, syncs, db stats, storage)
+
+### Sprint 9: Exportacao, Multi-account Prep, Polish (CONCLUIDA)
+- [x] Exportacao administrativa completa (`/api/admin/export-all`)
+- [x] Migration 020: tabela `instagram_accounts` (preparacao multi-conta)
+- [x] API `/api/settings/accounts` (CRUD contas)
+- [x] Migration 021: seed do usuario admin
+- [x] Auth em todas as rotas restantes
+
 ### Backlog futuro
-- [ ] Role-based access (admin vs viewer)
 - [ ] Accessibility pass completo (aria labels, keyboard nav)
 - [ ] Integracao com Canva API para geracao de assets
+- [ ] Multi-conta completo (selecao de conta ativa no frontend)
 
 ---
 
@@ -822,3 +960,4 @@ Cron `dashig-auto-publish` roda a cada 30 minutos. Publica entradas com:
 | `dashig-report-monthly` | `0 8 1 * *` (dia 1, 5h BRT) | POST /api/instagram/report |
 | `dashig-knowledge-scrape` | `0 9 * * 1` (seg 6h BRT) | POST /api/knowledge/scrape |
 | `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | POST /api/instagram/auto-publish |
+| `dashig-sync-competitors` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-competitors |

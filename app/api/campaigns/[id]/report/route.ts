@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/campaigns/[id]/report
@@ -8,9 +9,12 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * Inclui posts gerados (campaign_posts) e midias vinculadas (posts/reels com campaign_id).
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { id } = await params
     const supabase = createServerSupabaseClient()

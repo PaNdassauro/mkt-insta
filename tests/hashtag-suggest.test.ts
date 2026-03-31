@@ -23,6 +23,10 @@ vi.mock('@/lib/supabase', () => ({
   createServerSupabaseClient: () => ({ from: mockFrom }),
 }))
 
+vi.mock('@/lib/auth', () => ({
+  validateDashboardRequest: () => null,
+}))
+
 import { GET } from '@/app/api/instagram/hashtags/suggest/route'
 
 function makeRequest(caption = '') {

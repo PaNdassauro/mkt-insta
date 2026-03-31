@@ -1,32 +1,71 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { createBrowserSupabaseClient } from '@/lib/supabase-browser'
 
-const navItems = [
-  { label: 'Visao Geral', href: '/dashboard/instagram', icon: '📊' },
+interface NavGroup {
+  label: string
+  items: { label: string; href: string; icon: string }[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Analytics',
+    items: [
+      { label: 'Visao Geral', href: '/dashboard/instagram', icon: '📊' },
+      { label: 'Posts', href: '/dashboard/instagram/posts', icon: '📸' },
+      { label: 'Reels', href: '/dashboard/instagram/reels', icon: '🎬' },
+      { label: 'Stories', href: '/dashboard/instagram/stories', icon: '⏳' },
+      { label: 'Crescimento', href: '/dashboard/instagram/growth', icon: '📈' },
+      { label: 'Audiencia', href: '/dashboard/instagram/audience', icon: '👥' },
+      { label: 'Hashtags', href: '/dashboard/instagram/hashtags', icon: '🏷' },
+      { label: 'Concorrentes', href: '/dashboard/instagram/competitors', icon: '🏆' },
+      { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
+    ],
+  },
+  {
+    label: 'Producao',
+    items: [
+      { label: 'Campanhas', href: '/dashboard/instagram/campaigns', icon: '🚀' },
+      { label: 'Calendario', href: '/dashboard/instagram/calendar', icon: '📅' },
+      { label: 'Knowledge Base', href: '/dashboard/instagram/knowledge', icon: '🧠' },
+    ],
+  },
+  {
+    label: 'Engajamento',
+    items: [
+      { label: 'Comentarios', href: '/dashboard/instagram/comments', icon: '💭' },
+      { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: '💬' },
+      { label: 'Mencoes', href: '/dashboard/instagram/mentions', icon: '📷' },
+    ],
+  },
+  {
+    label: 'Administracao',
+    items: [
+      { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
+      { label: 'Usuarios', href: '/dashboard/instagram/settings/users', icon: '🔐' },
+      { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: '📜' },
+      { label: 'Sistema', href: '/dashboard/instagram/settings/system', icon: '🖥' },
+    ],
+  },
+]
+
+// Flat list for mobile (only main items, no admin sub-pages)
+const mobileNavItems = [
+  { label: 'Inicio', href: '/dashboard/instagram', icon: '📊' },
   { label: 'Posts', href: '/dashboard/instagram/posts', icon: '📸' },
   { label: 'Reels', href: '/dashboard/instagram/reels', icon: '🎬' },
   { label: 'Stories', href: '/dashboard/instagram/stories', icon: '⏳' },
   { label: 'Crescimento', href: '/dashboard/instagram/growth', icon: '📈' },
-  { label: 'Audiencia', href: '/dashboard/instagram/audience', icon: '👥' },
-  { label: 'Hashtags', href: '/dashboard/instagram/hashtags', icon: '🏷' },
-  { label: 'Concorrentes', href: '/dashboard/instagram/competitors', icon: '🏆' },
-  { label: 'Calendario', href: '/dashboard/instagram/calendar', icon: '📅' },
   { label: 'Campanhas', href: '/dashboard/instagram/campaigns', icon: '🚀' },
-  { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: '💬' },
+  { label: 'Calendario', href: '/dashboard/instagram/calendar', icon: '📅' },
   { label: 'Comentarios', href: '/dashboard/instagram/comments', icon: '💭' },
-  { label: 'Mencoes', href: '/dashboard/instagram/mentions', icon: '📷' },
-  { label: 'Hashtag Monitor', href: '/dashboard/instagram/hashtag-monitor', icon: '🔍' },
-  { label: 'Knowledge Base', href: '/dashboard/instagram/knowledge', icon: '🧠' },
-  { label: 'Relatorio', href: '/dashboard/instagram/report', icon: '📋' },
-  { label: 'Configuracoes', href: '/dashboard/instagram/settings', icon: '⚙️' },
-  { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: '📜' },
-  { label: 'Usuarios', href: '/dashboard/instagram/settings/users', icon: '🔐' },
-  { label: 'Sistema', href: '/dashboard/instagram/settings/system', icon: '🖥' },
+  { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: '💬' },
+  { label: 'Config', href: '/dashboard/instagram/settings', icon: '⚙️' },
 ]
 
 export default function InstagramLayout({
@@ -36,11 +75,26 @@ export default function InstagramLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  function toggleGroup(label: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
 
   async function handleLogout() {
     const supabase = createBrowserSupabaseClient()
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  function isActive(href: string) {
+    if (href === '/dashboard/instagram') return pathname === '/dashboard/instagram'
+    return pathname.startsWith(href)
   }
 
   return (
@@ -64,31 +118,47 @@ export default function InstagramLayout({
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-0.5 p-3" role="navigation" aria-label="Menu principal">
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Menu
-          </p>
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/dashboard/instagram'
-                ? pathname === '/dashboard/instagram'
-                : pathname.startsWith(item.href)
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" role="navigation" aria-label="Menu principal">
+          {navGroups.map((group) => {
+            const isCollapsed = collapsedGroups.has(group.label)
+            const hasActiveItem = group.items.some((item) => isActive(item.href))
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all',
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="flex w-full items-center justify-between px-3 py-1.5 mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  aria-expanded={!isCollapsed}
+                >
+                  {group.label}
+                  <span className={cn('text-[10px] transition-transform', isCollapsed ? '-rotate-90' : '')}>
+                    ▼
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="flex flex-col gap-0.5 mb-2">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive(item.href) ? 'page' : undefined}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                          isActive(item.href)
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <span className="text-base" aria-hidden="true">{item.icon}</span>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
                 )}
-              >
-                <span className="text-base" aria-hidden="true">{item.icon}</span>
-                {item.label}
-              </Link>
+                {isCollapsed && hasActiveItem && (
+                  <div className="h-0.5 mx-3 mb-2 rounded-full bg-primary/30" />
+                )}
+              </div>
             )
           })}
         </nav>
@@ -126,29 +196,22 @@ export default function InstagramLayout({
           </button>
         </div>
         <nav className="flex overflow-x-auto border-t px-2 py-1.5" role="navigation" aria-label="Menu principal">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/dashboard/instagram'
-                ? pathname === '/dashboard/instagram'
-                : pathname.startsWith(item.href)
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground'
-                )}
-              >
-                <span aria-hidden="true">{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
+          {mobileNavItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
+                isActive(item.href)
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-muted-foreground'
+              )}
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </div>
 

@@ -18,6 +18,7 @@ export interface AccountSnapshot {
   id: string
   date: string
   followers_count: number | null
+  /** @deprecated Removed from Meta API v21+. Kept for backward compatibility with existing data. */
   following_count: number | null
   media_count: number | null
   reach_7d: number | null
@@ -146,12 +147,6 @@ export interface EditorialEntry {
   created_by?: string | null
   updated_by?: string | null
   created_at: string
-}
-
-export interface AppConfig {
-  key: string
-  value: string
-  updated_at: string
 }
 
 // --- Meta Graph API Response Types ---
@@ -373,17 +368,6 @@ export interface AutoReplyRule {
   usage_count: number
   created_at: string
   updated_at: string
-}
-
-export interface ReplyTemplate {
-  id: string
-  name: string
-  category: string | null
-  content: string
-  shortcut: string | null
-  usage_count: number
-  is_active: boolean
-  created_at: string
 }
 
 // ==========================================

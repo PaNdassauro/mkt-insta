@@ -1,15 +1,19 @@
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/instagram/calendar/[id]
  * Retorna uma entrada do calendario editorial.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { id } = await params
     const supabase = createServerSupabaseClient()

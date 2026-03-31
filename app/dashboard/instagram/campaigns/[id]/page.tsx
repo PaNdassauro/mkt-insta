@@ -31,6 +31,7 @@ export default function CampaignEditorPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [posts, setPosts] = useState<CampaignPost[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -55,6 +56,23 @@ export default function CampaignEditorPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  async function handleDeleteCampaign() {
+    if (!confirm('Tem certeza que deseja deletar esta campanha? Esta acao nao pode ser desfeita.')) {
+      return
+    }
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/dashboard/instagram/campaigns')
+      }
+    } catch {
+      // silent
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function handlePostUpdate(updated: CampaignPost) {
     setPosts((prev) =>
@@ -105,7 +123,7 @@ export default function CampaignEditorPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">{campaign.title}</h1>
@@ -118,30 +136,47 @@ export default function CampaignEditorPage() {
           )}
         </div>
 
-        {/* Schedule button — only when all approved */}
-        {campaign.status === 'APPROVED' && (
-          <ScheduleButton
-            campaignId={campaignId}
-            onScheduled={() => {
-              loadData()
-              router.refresh()
-            }}
-          />
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Schedule button — only when approved */}
+          {campaign.status === 'APPROVED' && (
+            <ScheduleButton
+              campaignId={campaignId}
+              onScheduled={() => {
+                loadData()
+                router.refresh()
+              }}
+            />
+          )}
 
-        {campaign.status === 'SCHEDULED' && (
-          <div className="flex items-center gap-2 text-sm text-indigo-600">
-            <span>📅</span>
-            <span>Campanha agendada no calendario editorial</span>
-          </div>
-        )}
+          {campaign.status === 'SCHEDULED' && (
+            <div className="flex items-center gap-2 text-sm text-indigo-600">
+              <span>Campanha agendada no calendario editorial</span>
+            </div>
+          )}
 
-        <Link
-          href={`/dashboard/instagram/campaigns/${campaignId}/report`}
-          className="text-sm text-primary hover:underline"
-        >
-          📊 Ver relatorio
-        </Link>
+          <Link
+            href={`/dashboard/instagram/campaigns/${campaignId}/report`}
+            className="text-sm text-primary hover:underline"
+          >
+            Ver Relatorio
+          </Link>
+
+          <Link
+            href="/dashboard/instagram/campaigns/compare"
+            className="text-sm text-primary hover:underline"
+          >
+            Comparar Campanhas
+          </Link>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={deleting}
+            onClick={handleDeleteCampaign}
+          >
+            {deleting ? 'Deletando...' : 'Deletar Campanha'}
+          </Button>
+        </div>
       </div>
 
       {/* Tags */}

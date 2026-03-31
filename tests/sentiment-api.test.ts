@@ -11,6 +11,10 @@ vi.mock('@/lib/supabase', () => ({
   createServerSupabaseClient: () => ({ from: mockFrom }),
 }))
 
+vi.mock('@/lib/auth', () => ({
+  validateDashboardRequest: () => null,
+}))
+
 // Import after mock
 import { GET } from '@/app/api/instagram/comments/sentiment/route'
 
@@ -26,7 +30,7 @@ beforeEach(() => {
 
 describe('GET /api/instagram/comments/sentiment', () => {
   it('queries instagram_comments table', async () => {
-    await GET()
+    await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     expect(mockFrom).toHaveBeenCalledWith('instagram_comments')
     expect(mockSelect).toHaveBeenCalledWith('sentiment, timestamp')
   })
@@ -34,7 +38,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
   it('returns empty series and zero totals for no data', async () => {
     mockData.data = []
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     expect(body.series).toEqual([])
@@ -49,7 +53,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
       { sentiment: 'NEGATIVE', timestamp: '2026-03-24T15:00:00Z' },
     ]
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     expect(body.series).toHaveLength(1)
@@ -67,7 +71,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
       { sentiment: 'QUESTION', timestamp: '2026-03-23T14:00:00Z' },
     ]
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     expect(body.totals).toEqual({ POSITIVE: 2, NEUTRAL: 1, NEGATIVE: 1, QUESTION: 1 })
@@ -78,7 +82,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
       { sentiment: null, timestamp: '2026-03-23T10:00:00Z' },
     ]
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     expect(body.totals.NEUTRAL).toBe(1)
@@ -89,7 +93,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
     mockData.error = new Error('DB connection failed')
     mockOrder.mockReturnValue(mockData)
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     expect(res.status).toBe(500)
@@ -103,7 +107,7 @@ describe('GET /api/instagram/comments/sentiment', () => {
       { sentiment: 'NEGATIVE', timestamp: '2026-03-16T10:00:00Z' },
     ]
 
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/instagram/comments/sentiment'))
     const body = await res.json()
 
     // Should be sorted by week key ascending

@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { extractHashtags } from '@/lib/analytics'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/instagram/hashtags/suggest?caption=...
@@ -9,6 +10,9 @@ import { extractHashtags } from '@/lib/analytics'
  * Retorna top 15 hashtags rankeadas por impacto (reach x engagement).
  */
 export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { searchParams } = new URL(request.url)
     const caption = searchParams.get('caption') ?? ''

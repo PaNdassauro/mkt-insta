@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { calcEngagementRate } from '@/lib/analytics'
 import { apiError, getErrorMessage } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 
 function toCsv(headers: string[], rows: string[][]): string {
   const escape = (val: string) => {
@@ -18,6 +19,9 @@ function toCsv(headers: string[], rows: string[][]): string {
 }
 
 export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') ?? 'posts'

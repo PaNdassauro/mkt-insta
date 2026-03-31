@@ -1,8 +1,12 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { logger } from '@/lib/logger'
+import { validateDashboardRequest } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const supabase = createServerSupabaseClient()
 

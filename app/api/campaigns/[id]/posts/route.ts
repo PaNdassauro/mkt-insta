@@ -1,15 +1,19 @@
 import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/campaigns/[id]/posts
  * Lista todos os posts de uma campanha.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const { id } = await params
     const supabase = createServerSupabaseClient()

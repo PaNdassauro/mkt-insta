@@ -1,12 +1,16 @@
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 
 /**
  * GET /api/instagram/comments/sentiment
  * Retorna distribuicao de sentimento agregada por semana (ultimos 3 meses).
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   try {
     const supabase = createServerSupabaseClient()
 
