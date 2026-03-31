@@ -43,6 +43,16 @@ export async function POST(request: Request) {
       return apiError('scheduled_for and content_type are required', 400)
     }
 
+    const parsedDate = new Date(scheduled_for)
+    if (isNaN(parsedDate.getTime())) {
+      return apiError('scheduled_for deve ser uma data ISO valida', 400)
+    }
+
+    const validContentTypes = ['REEL', 'CAROUSEL', 'IMAGE', 'STORY']
+    if (!validContentTypes.includes(content_type)) {
+      return apiError(`content_type invalido. Deve ser: ${validContentTypes.join(', ')}`, 400)
+    }
+
     const supabase = createServerSupabaseClient()
     const { data, error } = await supabase
       .from('instagram_editorial_calendar')

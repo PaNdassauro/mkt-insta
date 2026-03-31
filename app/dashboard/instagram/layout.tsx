@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useSessionCheck } from '@/hooks/useSessionCheck'
 
 interface NavGroup {
   label: string
@@ -82,6 +84,8 @@ export default function InstagramLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  useSessionCheck()
 
   function toggleGroup(label: string) {
     setCollapsedGroups((prev) => {
@@ -224,7 +228,9 @@ export default function InstagramLayout({
       {/* Main content */}
       <main className="flex-1 overflow-auto pt-[7.5rem] md:pt-0">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
     </div>

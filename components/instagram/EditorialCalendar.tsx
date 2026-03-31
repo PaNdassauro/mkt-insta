@@ -62,7 +62,19 @@ export default function EditorialCalendar() {
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
   const addEntry = async () => {
-    if (!form.scheduled_for || !form.content_type) return
+    if (!form.scheduled_for) {
+      toast.error('Selecione uma data e hora para o agendamento')
+      return
+    }
+    const scheduledDate = new Date(form.scheduled_for)
+    if (scheduledDate <= new Date()) {
+      toast.error('A data de agendamento deve ser no futuro')
+      return
+    }
+    if (!form.content_type) {
+      toast.error('Selecione o tipo de conteudo')
+      return
+    }
     try {
       await fetch('/api/instagram/calendar', {
         method: 'POST',

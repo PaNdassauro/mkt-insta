@@ -22,14 +22,23 @@ export default function GeneratingScreen() {
   const [metadata, setMetadata] = useState<GenerationMetadata | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const [pollFailures, setPollFailures] = useState(0)
 
-  // Poll campaign status
+  const TIMEOUT_SECONDS = 120 // 2 minutos
+  const MAX_POLL_FAILURES = 5
+
+  // Poll campaign status with backoff
   const pollStatus = useCallback(async () => {
     if (!campaignId) return
 
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`)
-      if (!res.ok) return
+      if (!res.ok) {
+        setPollFailures((prev) => prev + 1)
+        return
+      }
+
+      setPollFailures(0) // Reset on success
 
       const campaign = await res.json()
       if (!campaign || campaign.error) return
@@ -43,12 +52,11 @@ export default function GeneratingScreen() {
           chunks_used: campaign.context_chunks_used ?? 0,
         })
       } else if (campaign.status === 'DRAFT') {
-        // Generation failed, reverted to DRAFT
         setStatus('error')
-        setErrorMsg('A geracao falhou. Tente novamente.')
+        setErrorMsg('A geracao falhou. A campanha voltou para rascunho.')
       }
     } catch {
-      // Silently retry
+      setPollFailures((prev) => prev + 1)
     }
   }, [campaignId, elapsed])
 
@@ -56,16 +64,32 @@ export default function GeneratingScreen() {
     if (status !== 'generating') return
 
     const timer = setInterval(() => {
-      setElapsed((prev) => prev + 1)
+      setElapsed((prev) => {
+        const next = prev + 1
+        // Hard timeout
+        if (next >= TIMEOUT_SECONDS) {
+          setStatus('error')
+          setErrorMsg(`Tempo limite de ${TIMEOUT_SECONDS / 60} minutos excedido. A geracao pode ainda estar em andamento — verifique a lista de campanhas.`)
+        }
+        return next
+      })
     }, 1000)
 
-    const poller = setInterval(pollStatus, 3000)
+    // Backoff: 3s base, doubles after each failure (max 15s)
+    const pollInterval = Math.min(3000 * Math.pow(2, pollFailures), 15000)
+    const poller = setInterval(pollStatus, pollInterval)
+
+    // Max poll failures
+    if (pollFailures >= MAX_POLL_FAILURES) {
+      setStatus('error')
+      setErrorMsg('Erro de conexao ao verificar o status. Verifique sua internet e tente novamente.')
+    }
 
     return () => {
       clearInterval(timer)
       clearInterval(poller)
     }
-  }, [status, pollStatus])
+  }, [status, pollStatus, pollFailures])
 
   if (!campaignId) {
     return (
@@ -91,7 +115,17 @@ export default function GeneratingScreen() {
             </p>
             <p className="text-xs text-muted-foreground mt-2">
               {formatTime(elapsed)} decorridos
+              {elapsed > 60 && (
+                <span className="text-yellow-600"> · tempo limite em {formatTime(TIMEOUT_SECONDS - elapsed)}</span>
+              )}
             </p>
+            {/* Progress bar */}
+            <div className="w-48 mx-auto mt-2 h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-1000"
+                style={{ width: `${Math.min((elapsed / TIMEOUT_SECONDS) * 100, 100)}%` }}
+              />
+            </div>
           </div>
 
           {/* Indicadores de progresso */}
@@ -183,6 +217,17 @@ export default function GeneratingScreen() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatus('generating')
+                setElapsed(0)
+                setErrorMsg(null)
+                setPollFailures(0)
+              }}
+            >
+              Tentar novamente
+            </Button>
             <Button
               variant="outline"
               onClick={() =>

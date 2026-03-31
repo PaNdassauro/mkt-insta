@@ -37,130 +37,178 @@ export const POST = withErrorHandler(async (request: Request) => {
     await alertTokenExpiring(daysLeft)
   }
 
-  // 1. Snapshot da conta
-  const accountInfo = await getAccountInfo(token)
-  const accountInsights = await getAccountInsights(token, userId)
-  const today = new Date().toISOString().split('T')[0]
+  const report = {
+    snapshot: { success: false, error: null as string | null },
+    media: { posts: 0, reels: 0, errors: 0 },
+    contentScores: { success: false, error: null as string | null },
+    anomalies: { checked: false },
+    telegram: { sent: false },
+  }
 
-  const { error: snapshotError } = await supabase
-    .from('instagram_account_snapshots')
-    .upsert(
-      {
-        date: today,
-        followers_count: accountInfo.followers_count,
-        following_count: accountInfo.following_count,
-        media_count: accountInfo.media_count,
-        reach_7d: accountInsights.reach,
-        impressions_7d: accountInsights.impressions,
-        profile_views: accountInsights.profile_views,
-        website_clicks: accountInsights.website_clicks,
-      },
-      { onConflict: 'date' }
-    )
-  if (snapshotError) throw new Error(`Snapshot error: ${snapshotError.message}`)
+  // 1. Snapshot da conta
+  try {
+    const accountInfo = await getAccountInfo(token)
+    const accountInsights = await getAccountInsights(token, userId)
+    const today = new Date().toISOString().split('T')[0]
+
+    const { error: snapshotError } = await supabase
+      .from('instagram_account_snapshots')
+      .upsert(
+        {
+          date: today,
+          followers_count: accountInfo.followers_count,
+          following_count: accountInfo.following_count,
+          media_count: accountInfo.media_count,
+          reach_7d: accountInsights.reach,
+          impressions_7d: accountInsights.impressions,
+          profile_views: accountInsights.profile_views,
+          website_clicks: accountInsights.website_clicks,
+        },
+        { onConflict: 'date' }
+      )
+    if (snapshotError) {
+      throw new Error(`Snapshot upsert: ${snapshotError.message}`)
+    }
+    report.snapshot.success = true
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    report.snapshot.error = message
+    logger.error(`Account snapshot failed: ${message}`, 'DashIG Sync')
+  }
 
   // 2. Media list (limit via query param, default 50)
-  const { searchParams } = new URL(request.url)
-  const mediaLimit = Math.min(Number(searchParams.get('limit')) || 50, 500)
-  const mediaItems = await getMediaList(token, userId, mediaLimit)
-  let postsCount = 0
-  let reelsCount = 0
+  let mediaSyncFailed = false
+  try {
+    const { searchParams } = new URL(request.url)
+    const mediaLimit = Math.min(Number(searchParams.get('limit')) || 50, 500)
+    const mediaItems = await getMediaList(token, userId, mediaLimit)
 
-  // Processar em batches paralelos de 5 para evitar rate limits
-  const BATCH_SIZE = 5
-  for (let i = 0; i < mediaItems.length; i += BATCH_SIZE) {
-    const batch = mediaItems.slice(i, i + BATCH_SIZE)
+    // Processar em batches paralelos de 5 para evitar rate limits
+    const BATCH_SIZE = 5
+    for (let i = 0; i < mediaItems.length; i += BATCH_SIZE) {
+      const batch = mediaItems.slice(i, i + BATCH_SIZE)
 
-    await Promise.allSettled(
-      batch.map(async (item) => {
-        try {
-          const isReel = item.media_product_type === 'REELS'
-          const insights = await getMediaInsights(
-            token,
-            item.id,
-            isReel ? 'REEL' : item.media_type
-          )
-          const hashtags = extractHashtags(item.caption ?? null)
-
-          if (isReel) {
-            const completionRate = calcCompletionRate(
-              insights.avg_watch_time ?? null,
-              null
+      const results = await Promise.allSettled(
+        batch.map(async (item) => {
+          try {
+            const isReel = item.media_product_type === 'REELS'
+            const insights = await getMediaInsights(
+              token,
+              item.id,
+              isReel ? 'REEL' : item.media_type
             )
+            const hashtags = extractHashtags(item.caption ?? null)
 
-            const { error } = await supabase.from('instagram_reels').upsert(
-              {
-                media_id: item.id,
-                caption: item.caption ?? null,
-                permalink: item.permalink ?? null,
-                thumbnail_url: item.thumbnail_url ?? null,
-                timestamp: item.timestamp,
-                views: insights.views ?? 0,
-                likes: insights.likes,
-                comments: insights.comments,
-                saves: insights.saved,
-                shares: insights.shares,
-                reach: insights.reach,
-                completion_rate: completionRate,
-                avg_watch_time_sec: insights.avg_watch_time ?? null,
-                hashtags: hashtags.length > 0 ? hashtags : null,
-                synced_at: new Date().toISOString(),
-              },
-              { onConflict: 'media_id' }
-            )
-            if (error) logger.error(`Reel upsert error (${item.id})`, 'DashIG Sync', { message: error.message })
-            reelsCount++
-          } else {
-            const engagementRate = calcEngagementRate(
-              insights.likes,
-              insights.comments,
-              insights.saved,
-              insights.shares,
-              insights.reach
-            )
+            if (isReel) {
+              const completionRate = calcCompletionRate(
+                insights.avg_watch_time ?? null,
+                null
+              )
 
-            const { error } = await supabase.from('instagram_posts').upsert(
-              {
-                media_id: item.id,
-                media_type: item.media_type,
-                caption: item.caption ?? null,
-                permalink: item.permalink ?? null,
-                thumbnail_url: item.thumbnail_url ?? null,
-                timestamp: item.timestamp,
-                likes: insights.likes,
-                comments: insights.comments,
-                saves: insights.saved,
-                shares: insights.shares,
-                reach: insights.reach,
-                impressions: insights.impressions,
-                engagement_rate: engagementRate,
-                hashtags: hashtags.length > 0 ? hashtags : null,
-                synced_at: new Date().toISOString(),
-              },
-              { onConflict: 'media_id' }
-            )
-            if (error) logger.error(`Post upsert error (${item.id})`, 'DashIG Sync', { message: error.message })
-            postsCount++
+              const { error } = await supabase.from('instagram_reels').upsert(
+                {
+                  media_id: item.id,
+                  caption: item.caption ?? null,
+                  permalink: item.permalink ?? null,
+                  thumbnail_url: item.thumbnail_url ?? null,
+                  timestamp: item.timestamp,
+                  views: insights.views ?? 0,
+                  likes: insights.likes,
+                  comments: insights.comments,
+                  saves: insights.saved,
+                  shares: insights.shares,
+                  reach: insights.reach,
+                  completion_rate: completionRate,
+                  avg_watch_time_sec: insights.avg_watch_time ?? null,
+                  hashtags: hashtags.length > 0 ? hashtags : null,
+                  synced_at: new Date().toISOString(),
+                },
+                { onConflict: 'media_id' }
+              )
+              if (error) logger.warn(`Reel upsert error (${item.id}): ${error.message}`, 'DashIG Sync')
+              report.media.reels++
+            } else {
+              const engagementRate = calcEngagementRate(
+                insights.likes,
+                insights.comments,
+                insights.saved,
+                insights.shares,
+                insights.reach
+              )
+
+              const { error } = await supabase.from('instagram_posts').upsert(
+                {
+                  media_id: item.id,
+                  media_type: item.media_type,
+                  caption: item.caption ?? null,
+                  permalink: item.permalink ?? null,
+                  thumbnail_url: item.thumbnail_url ?? null,
+                  timestamp: item.timestamp,
+                  likes: insights.likes,
+                  comments: insights.comments,
+                  saves: insights.saved,
+                  shares: insights.shares,
+                  reach: insights.reach,
+                  impressions: insights.impressions,
+                  engagement_rate: engagementRate,
+                  hashtags: hashtags.length > 0 ? hashtags : null,
+                  synced_at: new Date().toISOString(),
+                },
+                { onConflict: 'media_id' }
+              )
+              if (error) logger.warn(`Post upsert error (${item.id}): ${error.message}`, 'DashIG Sync')
+              report.media.posts++
+            }
+          } catch (err) {
+            logger.warn(`Media sync error (${item.id})`, 'DashIG Sync', { error: err as Error })
+            throw err
           }
-        } catch (err) {
-          logger.error(`Media sync error (${item.id})`, 'DashIG Sync', { error: err as Error })
+        })
+      )
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          report.media.errors++
         }
-      })
-    )
+      }
+    }
+  } catch (err) {
+    mediaSyncFailed = true
+    const message = err instanceof Error ? err.message : String(err)
+    logger.error(`Media sync failed entirely: ${message}`, 'DashIG Sync')
+  }
+
+  // If both snapshot AND media sync failed, return 500
+  if (!report.snapshot.success && mediaSyncFailed) {
+    return apiError('Sync failed: both account snapshot and media sync failed', 500)
   }
 
   // 3. Recalcular content_score de todos os posts
-  await recalculateContentScores(supabase)
+  try {
+    await recalculateContentScores(supabase)
+    report.contentScores.success = true
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    report.contentScores.error = message
+    logger.warn(`Content score recalculation failed: ${message}`, 'DashIG Sync')
+  }
 
   // 4. Detectar anomalias
   await detectAnomalies(supabase)
+  report.anomalies.checked = true
 
   // 5. Notificar via Telegram
-  await alertSyncCompleted(postsCount, reelsCount)
+  try {
+    await alertSyncCompleted(report.media.posts, report.media.reels)
+    report.telegram.sent = true
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    logger.warn(`Telegram notification failed: ${message}`, 'DashIG Sync')
+  }
 
   return apiSuccess({
     success: true,
-    synced: { posts: postsCount, reels: reelsCount },
+    report,
     tokenExpiring: isExpiring,
     daysLeft,
   })
