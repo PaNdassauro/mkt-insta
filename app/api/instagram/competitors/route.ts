@@ -51,19 +51,22 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { username, display_name } = body
+    const { username, display_name, ig_user_id } = body
 
     if (!username) {
       return apiError('username is required', 400)
     }
 
     const supabase = createServerSupabaseClient()
+    const payload: Record<string, string> = {
+      username: username.toLowerCase().replace('@', ''),
+      display_name: display_name || username,
+    }
+    if (ig_user_id) payload.ig_user_id = ig_user_id
+
     const { data, error } = await supabase
       .from('instagram_competitors')
-      .upsert(
-        { username: username.toLowerCase().replace('@', ''), display_name: display_name || username },
-        { onConflict: 'username' }
-      )
+      .upsert(payload, { onConflict: 'username' })
       .select()
       .single()
 

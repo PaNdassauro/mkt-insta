@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, apiError, withErrorHandler } from '@/lib/api-response'
-import { alertTokenExpiring, alertSyncCompleted } from '@/lib/telegram'
+import { alertTokenExpiring, alertSyncCompleted, alertEngagementAnomaly } from '@/lib/telegram'
 import {
   getAccessToken,
   checkTokenExpiration,
@@ -152,7 +152,10 @@ export const POST = withErrorHandler(async (request: Request) => {
   // 3. Recalcular content_score de todos os posts
   await recalculateContentScores(supabase)
 
-  // 4. Notificar via Telegram
+  // 4. Detectar anomalias
+  await detectAnomalies(supabase)
+
+  // 5. Notificar via Telegram
   await alertSyncCompleted(postsCount, reelsCount)
 
   return apiSuccess({
@@ -162,6 +165,135 @@ export const POST = withErrorHandler(async (request: Request) => {
     daysLeft,
   })
 }, 'DashIG Sync')
+
+async function detectAnomalies(
+  supabase: ReturnType<typeof createServerSupabaseClient>
+) {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0]
+
+    // --- 1. Follower drop ---
+    const { data: snapshots } = await supabase
+      .from('instagram_account_snapshots')
+      .select('date, followers_count')
+      .in('date', [today, yesterday])
+      .order('date', { ascending: false })
+
+    if (snapshots && snapshots.length >= 2) {
+      const todaySnap = snapshots.find((s) => s.date === today)
+      const yesterdaySnap = snapshots.find((s) => s.date === yesterday)
+
+      if (todaySnap && yesterdaySnap && yesterdaySnap.followers_count > 0) {
+        const dropPct =
+          (yesterdaySnap.followers_count - todaySnap.followers_count) /
+          yesterdaySnap.followers_count
+        if (dropPct > 0.02) {
+          logger.warn(
+            `Follower drop detected: ${todaySnap.followers_count} vs ${yesterdaySnap.followers_count} (${(dropPct * 100).toFixed(1)}%)`,
+            'DashIG Anomaly'
+          )
+          await alertEngagementAnomaly(
+            'drop',
+            'Seguidores',
+            todaySnap.followers_count,
+            yesterdaySnap.followers_count
+          )
+        }
+      }
+    }
+
+    // --- 2. Viral post (engagement_rate > 3x average) ---
+    const { data: allPosts } = await supabase
+      .from('instagram_posts')
+      .select('engagement_rate, synced_at')
+
+    if (allPosts && allPosts.length > 0) {
+      const rates = allPosts
+        .map((p) => p.engagement_rate)
+        .filter((r): r is number => r !== null)
+
+      if (rates.length > 0) {
+        const avgRate = rates.reduce((sum, r) => sum + r, 0) / rates.length
+        const todayStart = `${today}T00:00:00`
+
+        const syncedToday = allPosts.filter(
+          (p) =>
+            p.synced_at &&
+            p.synced_at >= todayStart &&
+            p.engagement_rate !== null
+        )
+
+        for (const post of syncedToday) {
+          if (post.engagement_rate! > avgRate * 3) {
+            logger.info(
+              `Viral post detected: engagement_rate ${post.engagement_rate!.toFixed(2)}% vs avg ${avgRate.toFixed(2)}%`,
+              'DashIG Anomaly'
+            )
+            await alertEngagementAnomaly(
+              'spike',
+              'Engagement',
+              post.engagement_rate!,
+              avgRate
+            )
+            break // alert once to avoid spam
+          }
+        }
+      }
+    }
+
+    // --- 3. Engagement trend (last 7d vs previous 7d) ---
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86_400_000).toISOString()
+
+    const { data: recentPosts } = await supabase
+      .from('instagram_posts')
+      .select('engagement_rate, timestamp')
+      .gte('timestamp', sevenDaysAgo)
+
+    const { data: previousPosts } = await supabase
+      .from('instagram_posts')
+      .select('engagement_rate, timestamp')
+      .gte('timestamp', fourteenDaysAgo)
+      .lt('timestamp', sevenDaysAgo)
+
+    if (recentPosts && previousPosts) {
+      const recentRates = recentPosts
+        .map((p) => p.engagement_rate)
+        .filter((r): r is number => r !== null)
+      const previousRates = previousPosts
+        .map((p) => p.engagement_rate)
+        .filter((r): r is number => r !== null)
+
+      if (recentRates.length > 0 && previousRates.length > 0) {
+        const recentAvg =
+          recentRates.reduce((s, r) => s + r, 0) / recentRates.length
+        const previousAvg =
+          previousRates.reduce((s, r) => s + r, 0) / previousRates.length
+
+        if (previousAvg > 0) {
+          const dropPct = (previousAvg - recentAvg) / previousAvg
+          if (dropPct > 0.3) {
+            logger.warn(
+              `Engagement trend drop: ${recentAvg.toFixed(2)}% vs ${previousAvg.toFixed(2)}% (${(dropPct * 100).toFixed(1)}% drop)`,
+              'DashIG Anomaly'
+            )
+            await alertEngagementAnomaly(
+              'drop',
+              'Engagement (7d)',
+              recentAvg,
+              previousAvg
+            )
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('Anomaly detection failed (non-blocking)', 'DashIG Anomaly', {
+      error: err as Error,
+    })
+  }
+}
 
 async function recalculateContentScores(
   supabase: ReturnType<typeof createServerSupabaseClient>

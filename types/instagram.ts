@@ -107,6 +107,7 @@ export interface Competitor {
   id: string
   username: string
   display_name: string | null
+  ig_user_id: string | null
   added_at: string
 }
 
@@ -115,6 +116,7 @@ export interface CompetitorSnapshot {
   competitor_id: string
   date: string
   followers_count: number | null
+  media_count: number | null
   posts_last_30d: number | null
   reels_last_30d: number | null
   avg_likes_last_10: number | null
@@ -141,6 +143,8 @@ export interface EditorialEntry {
   collaborators: string[] | null
   cover_url: string | null
   auto_publish: boolean
+  created_by?: string | null
+  updated_by?: string | null
   created_at: string
 }
 
@@ -277,6 +281,8 @@ export interface Campaign {
   timing_strategy: string | null
   expected_results: string | null
   tags: string[]
+  created_by?: string | null
+  updated_by?: string | null
   created_at: string
   updated_at: string
 }
@@ -321,6 +327,8 @@ export interface CampaignPost {
   status: CampaignPostStatus
   analyst_notes: string | null
   calendar_entry_id: string | null
+  created_by?: string | null
+  updated_by?: string | null
   created_at: string
   updated_at: string
 }

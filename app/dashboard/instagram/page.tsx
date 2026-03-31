@@ -7,6 +7,7 @@ const GrowthChart = dynamic(() => import('@/components/instagram/GrowthChart'), 
 const EngagementChart = dynamic(() => import('@/components/instagram/EngagementChart'), { ssr: false })
 import ContentScorecard from '@/components/instagram/ContentScorecard'
 import HeatmapPostingTime from '@/components/instagram/HeatmapPostingTime'
+import RecommendationWidget from '@/components/instagram/RecommendationWidget'
 import { useInstagramMetrics } from '@/hooks/useInstagramMetrics'
 import { usePostPerformance } from '@/hooks/usePostPerformance'
 import { useReelPerformance } from '@/hooks/useReelPerformance'
@@ -98,6 +99,9 @@ export default function OverviewPage() {
         avgEngagementRate={avgEngagementRate}
         isLoading={metricsLoading}
       />
+
+      {/* Recomendacoes */}
+      <RecommendationWidget />
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
