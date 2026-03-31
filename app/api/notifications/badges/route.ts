@@ -3,6 +3,7 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { checkTokenExpiration } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/notifications/badges
@@ -13,30 +14,34 @@ export async function GET(request: Request) {
   if (authError) return authError
 
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
+
+    // Build queries with optional account filtering
+    let commentsQuery = supabase
+      .from('instagram_comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_replied', false)
+      .eq('is_hidden', false)
+    if (accountId) commentsQuery = commentsQuery.eq('account_id', accountId)
+
+    let campaignsQuery = supabase
+      .from('instagram_campaigns')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'REVIEW')
+    if (accountId) campaignsQuery = campaignsQuery.eq('account_id', accountId)
+
+    let conversationsQuery = supabase
+      .from('instagram_conversations')
+      .select('unread_count')
+    if (accountId) conversationsQuery = conversationsQuery.eq('account_id', accountId)
 
     // Run all queries in parallel
     const [commentsResult, campaignsResult, conversationsResult, tokenResult] =
       await Promise.all([
-        // Unreplied, non-hidden comments
-        supabase
-          .from('instagram_comments')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_replied', false)
-          .eq('is_hidden', false),
-
-        // Campaigns pending review
-        supabase
-          .from('instagram_campaigns')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'REVIEW'),
-
-        // Unread messages (sum of unread_count)
-        supabase
-          .from('instagram_conversations')
-          .select('unread_count'),
-
-        // Token expiration check
+        commentsQuery,
+        campaignsQuery,
+        conversationsQuery,
         checkTokenExpiration(),
       ])
 

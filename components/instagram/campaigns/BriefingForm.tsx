@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -80,7 +82,7 @@ export default function BriefingForm() {
     startTimer()
 
     try {
-      const res = await fetch('/api/campaigns/generate', {
+      const res = await fetchWithAccount('/api/campaigns/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

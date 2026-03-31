@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
@@ -55,7 +57,7 @@ export default function StoryMetrics() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/instagram/stories?limit=100')
+    fetchWithAccount('/api/instagram/stories?limit=100')
       .then((r) => r.json())
       .then((json) => setStories(json.data ?? []))
       .catch(() => {})

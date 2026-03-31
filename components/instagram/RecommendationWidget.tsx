@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,7 +53,7 @@ export default function RecommendationWidget() {
 
     async function fetchRecommendations() {
       try {
-        const res = await fetch('/api/instagram/recommendations')
+        const res = await fetchWithAccount('/api/instagram/recommendations')
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }

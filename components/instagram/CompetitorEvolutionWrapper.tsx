@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
@@ -20,7 +22,7 @@ export default function CompetitorEvolutionWrapper() {
   useEffect(() => {
     async function fetchCompetitors() {
       try {
-        const res = await fetch('/api/instagram/competitors')
+        const res = await fetchWithAccount('/api/instagram/competitors')
         if (!res.ok) return
         const json = await res.json()
         const list = (json.data ?? []) as Array<{ id: string; username: string }>

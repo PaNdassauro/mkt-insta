@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import OverviewKPIs from '@/components/instagram/OverviewKPIs'
 import dynamic from 'next/dynamic'
@@ -68,7 +70,7 @@ export default function OverviewPage() {
 
   const [audience, setAudience] = useState<AudienceSnapshot | null>(null)
   useEffect(() => {
-    fetch('/api/instagram/audience')
+    fetchWithAccount('/api/instagram/audience')
       .then((r) => r.json())
       .then((json) => setAudience(json.data))
       .catch(() => {})

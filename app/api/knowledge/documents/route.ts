@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/knowledge/documents
@@ -12,12 +13,17 @@ export async function GET(request: Request) {
   if (authError) return authError
 
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
-    const { data: documents, error } = await supabase
+    let query = supabase
       .from('knowledge_documents')
       .select('*, document_chunks(count)')
       .order('created_at', { ascending: false })
+
+    if (accountId) query = query.eq('account_id', accountId)
+
+    const { data: documents, error } = await query
 
     if (error) {
       throw new Error(`Failed to fetch documents: ${error.message}`)

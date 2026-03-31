@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -37,7 +39,7 @@ export default function CalendarTable() {
   const fetchEntries = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/instagram/calendar?month=${currentMonth}`, { cache: 'no-store' })
+      const res = await fetchWithAccount(`/api/instagram/calendar?month=${currentMonth}`, { cache: 'no-store' })
       const json = await res.json()
       setEntries(json.data ?? [])
     } catch { toast.error('Erro ao carregar calendario') }
@@ -49,7 +51,7 @@ export default function CalendarTable() {
   async function deleteEntry(id: string) {
     if (!confirm('Excluir esta entrada?')) return
     try {
-      const res = await fetch(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
+      const res = await fetchWithAccount(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Entrada excluida')
         await fetchEntries()
@@ -62,7 +64,7 @@ export default function CalendarTable() {
 
   async function updateStatus(id: string, status: CalendarStatus) {
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
@@ -75,7 +77,7 @@ export default function CalendarTable() {
     if (!confirm('Publicar este conteudo agora no Instagram?')) return
     setPublishingId(id)
     try {
-      const res = await fetch('/api/instagram/publish', {
+      const res = await fetchWithAccount('/api/instagram/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ calendarEntryId: id }),

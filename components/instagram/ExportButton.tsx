@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
@@ -13,7 +15,7 @@ export default function ExportButton({ type }: ExportButtonProps) {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const res = await fetch(`/api/instagram/export?type=${type}`)
+      const res = await fetchWithAccount(`/api/instagram/export?type=${type}`)
       if (!res.ok) throw new Error('Export failed')
 
       const blob = await res.blob()

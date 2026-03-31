@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -28,7 +30,7 @@ export default function MentionsPage() {
   async function syncMentions() {
     setSyncing(true)
     try {
-      const res = await fetch('/api/instagram/mentions', {
+      const res = await fetchWithAccount('/api/instagram/mentions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'sync' }),
@@ -41,7 +43,7 @@ export default function MentionsPage() {
   }
 
   async function toggleSave(mention: InstagramMention) {
-    await fetch('/api/instagram/mentions', {
+    await fetchWithAccount('/api/instagram/mentions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

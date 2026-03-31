@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,7 +29,7 @@ export default function CompetitorTable() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/instagram/competitors')
+      const res = await fetchWithAccount('/api/instagram/competitors')
       const json = await res.json()
       setCompetitors(json.data ?? [])
     } catch {
@@ -43,7 +45,7 @@ export default function CompetitorTable() {
     if (!newUsername.trim()) return
     setAdding(true)
     try {
-      await fetch('/api/instagram/competitors', {
+      await fetchWithAccount('/api/instagram/competitors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: newUsername.trim() }),
@@ -59,7 +61,7 @@ export default function CompetitorTable() {
 
   const removeCompetitor = async (id: string) => {
     try {
-      await fetch(`/api/instagram/competitors?id=${id}`, { method: 'DELETE' })
+      await fetchWithAccount(`/api/instagram/competitors?id=${id}`, { method: 'DELETE' })
       await fetchData()
     } catch {
       // silenciar

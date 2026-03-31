@@ -2,9 +2,11 @@ import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const { searchParams } = new URL(request.url)
     const month = searchParams.get('month') // YYYY-MM
     const supabase = createServerSupabaseClient()
@@ -13,6 +15,8 @@ export async function GET(request: Request) {
       .from('instagram_editorial_calendar')
       .select('*')
       .order('scheduled_for', { ascending: true })
+
+    if (accountId) query = query.eq('account_id', accountId)
 
     if (month) {
       const start = `${month}-01T00:00:00Z`
@@ -53,6 +57,7 @@ export async function POST(request: Request) {
       return apiError(`content_type invalido. Deve ser: ${validContentTypes.join(', ')}`, 400)
     }
 
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
     const { data, error } = await supabase
       .from('instagram_editorial_calendar')
@@ -63,6 +68,7 @@ export async function POST(request: Request) {
         caption_draft: caption_draft || null,
         hashtags_plan: hashtags_plan || null,
         status: status || 'DRAFT',
+        account_id: accountId,
       })
       .select()
       .single()

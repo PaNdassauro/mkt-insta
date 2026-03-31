@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -75,7 +77,7 @@ export default function CampaignReportPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/campaigns/${campaignId}/report`)
+    fetchWithAccount(`/api/campaigns/${campaignId}/report`)
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})

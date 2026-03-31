@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -36,8 +38,8 @@ export default function CampaignEditorPage() {
   const loadData = useCallback(async () => {
     try {
       const [campRes, postsRes] = await Promise.all([
-        fetch(`/api/campaigns/${campaignId}`),
-        fetch(`/api/campaigns/${campaignId}/posts`),
+        fetchWithAccount(`/api/campaigns/${campaignId}`),
+        fetchWithAccount(`/api/campaigns/${campaignId}/posts`),
       ])
 
       if (campRes.ok) {
@@ -63,7 +65,7 @@ export default function CampaignEditorPage() {
     }
     setDeleting(true)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' })
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}`, { method: 'DELETE' })
       if (res.ok) {
         router.replace('/dashboard/instagram/campaigns')
       } else {
@@ -82,7 +84,7 @@ export default function CampaignEditorPage() {
       prev.map((p) => (p.id === updated.id ? updated : p))
     )
     // Reload campaign to get updated status
-    fetch(`/api/campaigns/${campaignId}`)
+    fetchWithAccount(`/api/campaigns/${campaignId}`)
       .then((r) => r.json())
       .then(setCampaign)
       .catch(() => {})
@@ -382,7 +384,7 @@ function TagsEditor({
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean)
 
-    await fetch(`/api/campaigns/${campaignId}`, {
+    await fetchWithAccount(`/api/campaigns/${campaignId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags: newTags }),

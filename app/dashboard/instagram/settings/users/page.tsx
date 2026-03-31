@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -56,7 +58,7 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/users')
+      const res = await fetchWithAccount('/api/settings/users')
       if (res.ok) {
         const data = await res.json()
         setUsers(data)
@@ -84,7 +86,7 @@ export default function UsersPage() {
 
     setInviting(true)
     try {
-      const res = await fetch('/api/settings/users', {
+      const res = await fetchWithAccount('/api/settings/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
@@ -109,7 +111,7 @@ export default function UsersPage() {
 
   async function handleRoleChange(userId: string, newRole: UserRole) {
     try {
-      const res = await fetch('/api/settings/users', {
+      const res = await fetchWithAccount('/api/settings/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, role: newRole }),
@@ -134,7 +136,7 @@ export default function UsersPage() {
 
     setDeleting(true)
     try {
-      const res = await fetch('/api/settings/users', {
+      const res = await fetchWithAccount('/api/settings/users', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: deleteTarget.id }),

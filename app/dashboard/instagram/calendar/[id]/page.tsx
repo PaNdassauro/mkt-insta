@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -85,7 +87,7 @@ export default function CalendarEntryEditorPage() {
 
   const loadEntry = useCallback(async () => {
     try {
-      const res = await fetch(`/api/instagram/calendar/${entryId}`)
+      const res = await fetchWithAccount(`/api/instagram/calendar/${entryId}`)
       if (res.ok) {
         const data = await res.json()
         setEntry(data)
@@ -124,7 +126,7 @@ export default function CalendarEntryEditorPage() {
       .filter(Boolean)
 
     try {
-      const res = await fetch('/api/instagram/calendar', {
+      const res = await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +168,7 @@ export default function CalendarEntryEditorPage() {
     if (!confirm('Publicar este post no Instagram da @welcomeweddings?')) return
     setPublishing(true)
     try {
-      const res = await fetch('/api/instagram/publish', {
+      const res = await fetchWithAccount('/api/instagram/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ calendarEntryId: entryId }),
@@ -187,7 +189,7 @@ export default function CalendarEntryEditorPage() {
 
   async function handleDelete() {
     if (!confirm('Tem certeza que deseja excluir esta entrada?')) return
-    await fetch(`/api/instagram/calendar?id=${entryId}`, { method: 'DELETE' })
+    await fetchWithAccount(`/api/instagram/calendar?id=${entryId}`, { method: 'DELETE' })
     router.push('/dashboard/instagram/calendar')
   }
 

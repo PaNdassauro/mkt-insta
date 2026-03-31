@@ -19,25 +19,40 @@ import {
   calcCompletionRate,
 } from '@/lib/analytics'
 
+interface SyncAccount {
+  id: string
+  ig_user_id: string
+}
+
 export const POST = withErrorHandler(async (request: Request) => {
   const authError = validateCronSecret(request)
   if (authError) return authError
 
   const supabase = createServerSupabaseClient()
-  const userId = process.env.META_IG_USER_ID
-  if (!userId) {
-    return apiError('META_IG_USER_ID not configured', 500)
+
+  // Multi-account: buscar todas as contas ativas
+  const { data: activeAccounts } = await supabase
+    .from('instagram_accounts')
+    .select('id, ig_user_id')
+    .eq('is_active', true)
+
+  // Montar lista de contas para sincronizar
+  const accounts: SyncAccount[] = []
+  if (activeAccounts && activeAccounts.length > 0) {
+    accounts.push(...activeAccounts)
+  } else {
+    // Fallback legado: usar env vars (backward compatibility)
+    const envUserId = process.env.META_IG_USER_ID
+    if (!envUserId) {
+      return apiError('No active accounts and META_IG_USER_ID not configured', 500)
+    }
+    accounts.push({ id: '', ig_user_id: envUserId })
   }
 
-  // Buscar token e verificar expiracao
-  const token = await getAccessToken()
-  const { isExpiring, daysLeft } = await checkTokenExpiration()
-  if (isExpiring) {
-    logger.warn(`Token expira em ${daysLeft} dias! Renovar urgente.`, 'DashIG Sync')
-    await alertTokenExpiring(daysLeft)
-  }
+  const useMultiAccount = accounts.length > 0 && accounts[0].id !== ''
 
   const report = {
+    accounts_synced: 0,
     snapshot: { success: false, error: null as string | null },
     media: { posts: 0, reels: 0, errors: 0 },
     contentScores: { success: false, error: null as string | null },
@@ -45,68 +60,90 @@ export const POST = withErrorHandler(async (request: Request) => {
     telegram: { sent: false },
   }
 
-  // 1. Snapshot da conta
-  try {
-    const accountInfo = await getAccountInfo(token)
-    const accountInsights = await getAccountInsights(token, userId)
-    const today = new Date().toISOString().split('T')[0]
+  let tokenExpiring = false
+  let tokenDaysLeft = 0
 
-    const { error: snapshotError } = await supabase
-      .from('instagram_account_snapshots')
-      .upsert(
-        {
-          date: today,
-          followers_count: accountInfo.followers_count,
-          following_count: accountInfo.following_count,
-          media_count: accountInfo.media_count,
-          reach_7d: accountInsights.reach,
-          impressions_7d: accountInsights.impressions,
-          profile_views: accountInsights.profile_views,
-          website_clicks: accountInsights.website_clicks,
-        },
-        { onConflict: 'date' }
-      )
-    if (snapshotError) {
-      throw new Error(`Snapshot upsert: ${snapshotError.message}`)
+  for (const account of accounts) {
+    const accountLabel = useMultiAccount ? ` [${account.ig_user_id}]` : ''
+
+    // Buscar token e verificar expiracao
+    const token = useMultiAccount
+      ? await getAccessToken(account.id)
+      : await getAccessToken()
+    const { isExpiring, daysLeft } = useMultiAccount
+      ? await checkTokenExpiration(account.id)
+      : await checkTokenExpiration()
+
+    if (isExpiring) {
+      tokenExpiring = true
+      tokenDaysLeft = daysLeft
+      logger.warn(`Token expira em ${daysLeft} dias!${accountLabel} Renovar urgente.`, 'DashIG Sync')
+      await alertTokenExpiring(daysLeft)
     }
-    report.snapshot.success = true
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    report.snapshot.error = message
-    logger.error(`Account snapshot failed: ${message}`, 'DashIG Sync')
-  }
 
-  // 2. Media list (limit via query param, default 50)
-  let mediaSyncFailed = false
-  try {
-    const { searchParams } = new URL(request.url)
-    const mediaLimit = Math.min(Number(searchParams.get('limit')) || 50, 500)
-    const mediaItems = await getMediaList(token, userId, mediaLimit)
+    // 1. Snapshot da conta
+    try {
+      const accountInfo = await getAccountInfo(token, account.ig_user_id)
+      const accountInsights = await getAccountInsights(token, account.ig_user_id)
+      const today = new Date().toISOString().split('T')[0]
 
-    // Processar em batches paralelos de 5 para evitar rate limits
-    const BATCH_SIZE = 5
-    for (let i = 0; i < mediaItems.length; i += BATCH_SIZE) {
-      const batch = mediaItems.slice(i, i + BATCH_SIZE)
+      const snapshotPayload: Record<string, unknown> = {
+        date: today,
+        followers_count: accountInfo.followers_count,
+        following_count: accountInfo.following_count,
+        media_count: accountInfo.media_count,
+        reach_7d: accountInsights.reach,
+        impressions_7d: accountInsights.impressions,
+        profile_views: accountInsights.profile_views,
+        website_clicks: accountInsights.website_clicks,
+      }
+      if (useMultiAccount) {
+        snapshotPayload.account_id = account.id
+      }
 
-      const results = await Promise.allSettled(
-        batch.map(async (item) => {
-          try {
-            const isReel = item.media_product_type === 'REELS'
-            const insights = await getMediaInsights(
-              token,
-              item.id,
-              isReel ? 'REEL' : item.media_type
-            )
-            const hashtags = extractHashtags(item.caption ?? null)
+      const { error: snapshotError } = await supabase
+        .from('instagram_account_snapshots')
+        .upsert(snapshotPayload, { onConflict: 'date' })
+      if (snapshotError) {
+        throw new Error(`Snapshot upsert: ${snapshotError.message}`)
+      }
+      report.snapshot.success = true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      report.snapshot.error = message
+      logger.error(`Account snapshot failed${accountLabel}: ${message}`, 'DashIG Sync')
+    }
 
-            if (isReel) {
-              const completionRate = calcCompletionRate(
-                insights.avg_watch_time ?? null,
-                null
+    // 2. Media list (limit via query param, default 50)
+    let mediaSyncFailed = false
+    try {
+      const { searchParams } = new URL(request.url)
+      const mediaLimit = Math.min(Number(searchParams.get('limit')) || 50, 500)
+      const mediaItems = await getMediaList(token, account.ig_user_id, mediaLimit)
+
+      // Processar em batches paralelos de 5 para evitar rate limits
+      const BATCH_SIZE = 5
+      for (let i = 0; i < mediaItems.length; i += BATCH_SIZE) {
+        const batch = mediaItems.slice(i, i + BATCH_SIZE)
+
+        const results = await Promise.allSettled(
+          batch.map(async (item) => {
+            try {
+              const isReel = item.media_product_type === 'REELS'
+              const insights = await getMediaInsights(
+                token,
+                item.id,
+                isReel ? 'REEL' : item.media_type
               )
+              const hashtags = extractHashtags(item.caption ?? null)
 
-              const { error } = await supabase.from('instagram_reels').upsert(
-                {
+              if (isReel) {
+                const completionRate = calcCompletionRate(
+                  insights.avg_watch_time ?? null,
+                  null
+                )
+
+                const reelPayload: Record<string, unknown> = {
                   media_id: item.id,
                   caption: item.caption ?? null,
                   permalink: item.permalink ?? null,
@@ -122,22 +159,27 @@ export const POST = withErrorHandler(async (request: Request) => {
                   avg_watch_time_sec: insights.avg_watch_time ?? null,
                   hashtags: hashtags.length > 0 ? hashtags : null,
                   synced_at: new Date().toISOString(),
-                },
-                { onConflict: 'media_id' }
-              )
-              if (error) logger.warn(`Reel upsert error (${item.id}): ${error.message}`, 'DashIG Sync')
-              report.media.reels++
-            } else {
-              const engagementRate = calcEngagementRate(
-                insights.likes,
-                insights.comments,
-                insights.saved,
-                insights.shares,
-                insights.reach
-              )
+                }
+                if (useMultiAccount) {
+                  reelPayload.account_id = account.id
+                }
 
-              const { error } = await supabase.from('instagram_posts').upsert(
-                {
+                const { error } = await supabase.from('instagram_reels').upsert(
+                  reelPayload,
+                  { onConflict: 'media_id' }
+                )
+                if (error) logger.warn(`Reel upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
+                report.media.reels++
+              } else {
+                const engagementRate = calcEngagementRate(
+                  insights.likes,
+                  insights.comments,
+                  insights.saved,
+                  insights.shares,
+                  insights.reach
+                )
+
+                const postPayload: Record<string, unknown> = {
                   media_id: item.id,
                   media_type: item.media_type,
                   caption: item.caption ?? null,
@@ -153,34 +195,49 @@ export const POST = withErrorHandler(async (request: Request) => {
                   engagement_rate: engagementRate,
                   hashtags: hashtags.length > 0 ? hashtags : null,
                   synced_at: new Date().toISOString(),
-                },
-                { onConflict: 'media_id' }
-              )
-              if (error) logger.warn(`Post upsert error (${item.id}): ${error.message}`, 'DashIG Sync')
-              report.media.posts++
-            }
-          } catch (err) {
-            logger.warn(`Media sync error (${item.id})`, 'DashIG Sync', { error: err as Error })
-            throw err
-          }
-        })
-      )
+                }
+                if (useMultiAccount) {
+                  postPayload.account_id = account.id
+                }
 
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          report.media.errors++
+                const { error } = await supabase.from('instagram_posts').upsert(
+                  postPayload,
+                  { onConflict: 'media_id' }
+                )
+                if (error) logger.warn(`Post upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
+                report.media.posts++
+              }
+            } catch (err) {
+              logger.warn(`Media sync error (${item.id})${accountLabel}`, 'DashIG Sync', { error: err as Error })
+              throw err
+            }
+          })
+        )
+
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            report.media.errors++
+          }
         }
       }
+    } catch (err) {
+      mediaSyncFailed = true
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error(`Media sync failed entirely${accountLabel}: ${message}`, 'DashIG Sync')
     }
-  } catch (err) {
-    mediaSyncFailed = true
-    const message = err instanceof Error ? err.message : String(err)
-    logger.error(`Media sync failed entirely: ${message}`, 'DashIG Sync')
+
+    // If both snapshot AND media sync failed for this account, log but continue with next
+    if (!report.snapshot.success && mediaSyncFailed) {
+      logger.error(`Sync failed completely for account${accountLabel}`, 'DashIG Sync')
+      continue
+    }
+
+    report.accounts_synced++
   }
 
-  // If both snapshot AND media sync failed, return 500
-  if (!report.snapshot.success && mediaSyncFailed) {
-    return apiError('Sync failed: both account snapshot and media sync failed', 500)
+  // If no accounts synced at all, return 500
+  if (report.accounts_synced === 0) {
+    return apiError('Sync failed: no accounts synced successfully', 500)
   }
 
   // 3. Recalcular content_score de todos os posts
@@ -209,8 +266,8 @@ export const POST = withErrorHandler(async (request: Request) => {
   return apiSuccess({
     success: true,
     report,
-    tokenExpiring: isExpiring,
-    daysLeft,
+    tokenExpiring,
+    daysLeft: tokenDaysLeft,
   })
 }, 'DashIG Sync')
 

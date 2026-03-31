@@ -1,15 +1,20 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (request: Request) => {
+  const accountId = await resolveAccountId(request)
   const supabase = createServerSupabaseClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('instagram_audience_snapshots')
     .select('*')
     .order('week_start', { ascending: false })
     .limit(1)
-    .single()
+
+  if (accountId) query = query.eq('account_id', accountId)
+
+  const { data, error } = await query.single()
 
   if (error && error.code !== 'PGRST116') throw error
 

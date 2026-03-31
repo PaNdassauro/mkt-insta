@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -65,7 +67,7 @@ export default function SentimentChart() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/instagram/comments/sentiment')
+    fetchWithAccount('/api/instagram/comments/sentiment')
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})

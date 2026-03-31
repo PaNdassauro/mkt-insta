@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
 import { logger } from '@/lib/logger'
+import { resolveAccountId } from '@/lib/account-context'
 
 // ============================================================
 // Recommendation Engine — Analisa dados historicos e retorna
@@ -17,7 +18,8 @@ interface Recommendation {
 
 const DAY_LABELS = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado']
 
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (request: Request) => {
+  const accountId = await resolveAccountId(request)
   const supabase = createServerSupabaseClient()
   const recommendations: Recommendation[] = []
 
@@ -34,23 +36,32 @@ export const GET = withErrorHandler(async () => {
   const sevenDaysFromNow = new Date(now)
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
 
+  let postsQuery = supabase
+    .from('instagram_posts')
+    .select('id, media_type, caption, hashtags, likes, comments, saves, shares, reach, engagement_rate, timestamp')
+    .gte('timestamp', thirtyDaysAgo.toISOString())
+    .order('timestamp', { ascending: false })
+  if (accountId) postsQuery = postsQuery.eq('account_id', accountId)
+
+  let reelsQuery = supabase
+    .from('instagram_reels')
+    .select('id, caption, hashtags, likes, comments, saves, shares, reach, views, timestamp')
+    .gte('timestamp', thirtyDaysAgo.toISOString())
+    .order('timestamp', { ascending: false })
+  if (accountId) reelsQuery = reelsQuery.eq('account_id', accountId)
+
+  let calendarQuery = supabase
+    .from('editorial_calendar')
+    .select('id, scheduled_for, content_type, status')
+    .gte('scheduled_for', now.toISOString().split('T')[0])
+    .lte('scheduled_for', sevenDaysFromNow.toISOString().split('T')[0])
+    .neq('status', 'CANCELLED')
+  if (accountId) calendarQuery = calendarQuery.eq('account_id', accountId)
+
   const [postsRes, reelsRes, calendarRes] = await Promise.all([
-    supabase
-      .from('instagram_posts')
-      .select('id, media_type, caption, hashtags, likes, comments, saves, shares, reach, engagement_rate, timestamp')
-      .gte('timestamp', thirtyDaysAgo.toISOString())
-      .order('timestamp', { ascending: false }),
-    supabase
-      .from('instagram_reels')
-      .select('id, caption, hashtags, likes, comments, saves, shares, reach, views, timestamp')
-      .gte('timestamp', thirtyDaysAgo.toISOString())
-      .order('timestamp', { ascending: false }),
-    supabase
-      .from('editorial_calendar')
-      .select('id, scheduled_for, content_type, status')
-      .gte('scheduled_for', now.toISOString().split('T')[0])
-      .lte('scheduled_for', sevenDaysFromNow.toISOString().split('T')[0])
-      .neq('status', 'CANCELLED'),
+    postsQuery,
+    reelsQuery,
+    calendarQuery,
   ])
 
   if (postsRes.error) throw postsRes.error

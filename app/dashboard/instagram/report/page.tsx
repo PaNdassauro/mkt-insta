@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,7 +13,7 @@ export default function ReportPage() {
   const generatePreview = async () => {
     setIsGenerating(true)
     try {
-      const res = await fetch('/api/instagram/report')
+      const res = await fetchWithAccount('/api/instagram/report')
       const html = await res.text()
       setPreviewHtml(html)
     } catch {

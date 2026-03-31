@@ -5,6 +5,7 @@ import { parsePDF } from '@/lib/rag/pdf-parser'
 import { chunkText } from '@/lib/rag/chunker'
 import { generateEmbeddings } from '@/lib/rag/embeddings'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * POST /api/knowledge/ingest
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       return apiError('Only PDF files are supported', 400)
     }
 
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
     // 1. Parse PDF
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
         file_name: file.name,
         description,
         indexed_at: new Date().toISOString(),
+        account_id: accountId,
       })
       .select()
       .single()

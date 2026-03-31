@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -30,7 +32,7 @@ export default function CalendarKanban() {
 
   const fetchEntries = useCallback(async () => {
     try {
-      const res = await fetch('/api/instagram/calendar')
+      const res = await fetchWithAccount('/api/instagram/calendar')
       const json = await res.json()
       setEntries(json.data ?? [])
     } catch {
@@ -46,7 +48,7 @@ export default function CalendarKanban() {
 
   async function moveToStatus(entryId: string, newStatus: CalendarStatus) {
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: entryId, status: newStatus }),

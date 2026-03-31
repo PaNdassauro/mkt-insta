@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,7 +36,7 @@ export default function CommentsPage() {
 
   const fetchComments = useCallback(async () => {
     try {
-      const res = await fetch(`/api/instagram/comments?filter=${filter}`)
+      const res = await fetchWithAccount(`/api/instagram/comments?filter=${filter}`)
       if (res.ok) setComments(await res.json())
     } catch { toast.error('Erro ao carregar comentarios') }
     finally { setLoading(false) }
@@ -45,7 +47,7 @@ export default function CommentsPage() {
   async function syncComments() {
     setSyncing(true)
     try {
-      const res = await fetch('/api/instagram/comments', {
+      const res = await fetchWithAccount('/api/instagram/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'sync' }),
@@ -60,7 +62,7 @@ export default function CommentsPage() {
   async function reply(commentId: string) {
     if (!replyText.trim()) return
     try {
-      const res = await fetch('/api/instagram/comments', {
+      const res = await fetchWithAccount('/api/instagram/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reply', comment_id: commentId, text: replyText }),
@@ -78,7 +80,7 @@ export default function CommentsPage() {
   }
 
   async function hideComment(commentId: string, hide: boolean) {
-    await fetch('/api/instagram/comments', {
+    await fetchWithAccount('/api/instagram/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'hide', comment_id: commentId, hide }),
@@ -89,7 +91,7 @@ export default function CommentsPage() {
 
   async function deleteComment(commentId: string) {
     if (!confirm('Deletar permanentemente este comentario?')) return
-    await fetch('/api/instagram/comments', {
+    await fetchWithAccount('/api/instagram/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', comment_id: commentId }),

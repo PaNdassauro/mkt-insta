@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,7 +32,7 @@ export default function HashtagMonitorPage() {
 
   const fetchHashtags = useCallback(async () => {
     try {
-      const res = await fetch('/api/instagram/hashtag-monitor')
+      const res = await fetchWithAccount('/api/instagram/hashtag-monitor')
       if (res.ok) setHashtags(await res.json())
     } catch { toast.error('Erro ao carregar hashtags') }
     finally { setLoading(false) }
@@ -41,7 +43,7 @@ export default function HashtagMonitorPage() {
   async function addHashtag() {
     if (!newHashtag.trim()) return
     try {
-      await fetch('/api/instagram/hashtag-monitor', {
+      await fetchWithAccount('/api/instagram/hashtag-monitor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add', hashtag: newHashtag }),
@@ -55,7 +57,7 @@ export default function HashtagMonitorPage() {
   async function syncAll() {
     setSyncing(true)
     try {
-      const res = await fetch('/api/instagram/hashtag-monitor', {
+      const res = await fetchWithAccount('/api/instagram/hashtag-monitor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'sync' }),
@@ -68,7 +70,7 @@ export default function HashtagMonitorPage() {
   }
 
   async function removeHashtag(id: string) {
-    await fetch('/api/instagram/hashtag-monitor', {
+    await fetchWithAccount('/api/instagram/hashtag-monitor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'remove', id }),

@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -52,7 +54,7 @@ export default function EditorialCalendar() {
   const fetchEntries = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/instagram/calendar?month=${currentMonth}`, { cache: 'no-store' })
+      const res = await fetchWithAccount(`/api/instagram/calendar?month=${currentMonth}`, { cache: 'no-store' })
       const json = await res.json()
       setEntries(json.data ?? [])
     } catch { toast.error('Erro ao carregar calendario') }
@@ -76,7 +78,7 @@ export default function EditorialCalendar() {
       return
     }
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -89,7 +91,7 @@ export default function EditorialCalendar() {
 
   const updateStatus = async (id: string, status: CalendarStatus) => {
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
@@ -101,7 +103,7 @@ export default function EditorialCalendar() {
   const deleteEntry = async (id: string) => {
     if (!confirm('Excluir esta entrada do calendario?')) return
     try {
-      const res = await fetch(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
+      const res = await fetchWithAccount(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Entrada excluida')
         await fetchEntries()
@@ -116,7 +118,7 @@ export default function EditorialCalendar() {
     const url = prompt('Cole a URL publica da imagem ou video:')
     if (!url) return
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, media_url: url }),
@@ -127,7 +129,7 @@ export default function EditorialCalendar() {
 
   const toggleAutoPublish = async (entry: EditorialEntry) => {
     try {
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: entry.id, auto_publish: !entry.auto_publish }),
@@ -140,7 +142,7 @@ export default function EditorialCalendar() {
     if (!entry.media_url && !entry.carousel_urls?.length) {
       const url = prompt('Cole a URL publica da imagem ou video para publicar:')
       if (!url) return
-      await fetch('/api/instagram/calendar', {
+      await fetchWithAccount('/api/instagram/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: entry.id, media_url: url }),
@@ -150,7 +152,7 @@ export default function EditorialCalendar() {
 
     setPublishingId(entry.id)
     try {
-      const res = await fetch('/api/instagram/publish', {
+      const res = await fetchWithAccount('/api/instagram/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ calendarEntryId: entry.id }),

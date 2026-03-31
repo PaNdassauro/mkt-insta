@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,7 +28,7 @@ export default function MessagesPage() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch('/api/instagram/messages')
+      const res = await fetchWithAccount('/api/instagram/messages')
       if (res.ok) setConversations(await res.json())
     } catch { toast.error('Erro ao carregar conversas') }
     finally { setLoading(false) }
@@ -34,7 +36,7 @@ export default function MessagesPage() {
 
   const fetchMessages = useCallback(async (convId: string) => {
     try {
-      const res = await fetch(`/api/instagram/messages/${convId}`)
+      const res = await fetchWithAccount(`/api/instagram/messages/${convId}`)
       if (res.ok) {
         setMessages(await res.json())
         // Scroll to bottom
@@ -45,7 +47,7 @@ export default function MessagesPage() {
 
   const fetchRules = useCallback(async () => {
     try {
-      const res = await fetch('/api/instagram/auto-reply')
+      const res = await fetchWithAccount('/api/instagram/auto-reply')
       if (res.ok) setRules(await res.json())
     } catch { /* silent */ }
   }, [])
@@ -66,7 +68,7 @@ export default function MessagesPage() {
     if (!replyText.trim() || !selectedId || sending) return
     setSending(true)
     try {
-      const res = await fetch('/api/instagram/messages', {
+      const res = await fetchWithAccount('/api/instagram/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversation_id: selectedId, text: replyText.trim() }),
@@ -88,7 +90,7 @@ export default function MessagesPage() {
 
   async function saveRule(rule: Partial<AutoReplyRule> & { id?: string }) {
     const method = rule.id ? 'PUT' : 'POST'
-    const res = await fetch('/api/instagram/auto-reply', {
+    const res = await fetchWithAccount('/api/instagram/auto-reply', {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(rule),
@@ -102,7 +104,7 @@ export default function MessagesPage() {
   }
 
   async function deleteRule(id: string) {
-    await fetch(`/api/instagram/auto-reply?id=${id}`, { method: 'DELETE' })
+    await fetchWithAccount(`/api/instagram/auto-reply?id=${id}`, { method: 'DELETE' })
     toast.success('Regra removida')
     await fetchRules()
   }
@@ -131,7 +133,7 @@ export default function MessagesPage() {
             className="text-xs"
             onClick={async () => {
               try {
-                const res = await fetch('/api/instagram/messages/enrich', { method: 'POST' })
+                const res = await fetchWithAccount('/api/instagram/messages/enrich', { method: 'POST' })
                 if (res.ok) {
                   const data = await res.json()
                   toast.success(`${data.enriched} nomes atualizados`)

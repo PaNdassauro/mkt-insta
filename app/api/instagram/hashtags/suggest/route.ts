@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { extractHashtags } from '@/lib/analytics'
 import { validateDashboardRequest } from '@/lib/auth'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/instagram/hashtags/suggest?caption=...
@@ -17,24 +18,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const caption = searchParams.get('caption') ?? ''
 
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
     // 1. Buscar todos os posts com hashtags e metricas nos ultimos 6 meses
     const since = new Date()
     since.setMonth(since.getMonth() - 6)
 
-    const [postsRes, reelsRes] = await Promise.all([
-      supabase
-        .from('instagram_posts')
-        .select('hashtags, reach, likes, comments, saves, shares')
-        .not('hashtags', 'is', null)
-        .gte('timestamp', since.toISOString()),
-      supabase
-        .from('instagram_reels')
-        .select('hashtags, reach, likes, comments, saves, shares')
-        .not('hashtags', 'is', null)
-        .gte('timestamp', since.toISOString()),
-    ])
+    let postsQuery = supabase
+      .from('instagram_posts')
+      .select('hashtags, reach, likes, comments, saves, shares')
+      .not('hashtags', 'is', null)
+      .gte('timestamp', since.toISOString())
+    if (accountId) postsQuery = postsQuery.eq('account_id', accountId)
+
+    let reelsQuery = supabase
+      .from('instagram_reels')
+      .select('hashtags, reach, likes, comments, saves, shares')
+      .not('hashtags', 'is', null)
+      .gte('timestamp', since.toISOString())
+    if (accountId) reelsQuery = reelsQuery.eq('account_id', accountId)
+
+    const [postsRes, reelsRes] = await Promise.all([postsQuery, reelsQuery])
 
     const allMedia = [...(postsRes.data ?? []), ...(reelsRes.data ?? [])]
 

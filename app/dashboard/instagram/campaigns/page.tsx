@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -38,7 +40,7 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('')
   async function loadCampaigns() {
     try {
-      const res = await fetch('/api/campaigns', { cache: 'no-store' })
+      const res = await fetchWithAccount('/api/campaigns', { cache: 'no-store' })
       if (res.ok) setCampaigns(await res.json())
     } catch { /* silent */ }
     finally { setLoading(false) }
@@ -75,7 +77,7 @@ export default function CampaignsPage() {
     e.preventDefault()
     e.stopPropagation()
     try {
-      const res = await fetch(`/api/campaigns/${id}`, {
+      const res = await fetchWithAccount(`/api/campaigns/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'ARCHIVED' }),
@@ -94,7 +96,7 @@ export default function CampaignsPage() {
     e.stopPropagation()
     if (!confirm(`Deletar "${title}"? Esta acao nao pode ser desfeita.`)) return
     try {
-      const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' })
+      const res = await fetchWithAccount(`/api/campaigns/${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Campanha deletada')
         await loadCampaigns()

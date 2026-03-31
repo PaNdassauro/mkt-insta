@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -39,7 +41,7 @@ export default function AccountsPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/settings/accounts', {
+      const res = await fetchWithAccount('/api/settings/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,7 +72,7 @@ export default function AccountsPage() {
   async function handleToggleActive(account: InstagramAccount) {
     setTogglingId(account.id)
     try {
-      const res = await fetch('/api/settings/accounts', {
+      const res = await fetchWithAccount('/api/settings/accounts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

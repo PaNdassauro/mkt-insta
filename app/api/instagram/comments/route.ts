@@ -3,6 +3,7 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -12,6 +13,7 @@ const META_API = 'https://graph.facebook.com/v21.0'
  */
 export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const { searchParams } = new URL(request.url)
     const filter = searchParams.get('filter') // all | unreplied | questions | hidden
     const mediaId = searchParams.get('media_id')
@@ -23,6 +25,7 @@ export async function GET(request: Request) {
       .order('timestamp', { ascending: false })
       .limit(100)
 
+    if (accountId) query = query.eq('account_id', accountId)
     if (filter === 'unreplied') query = query.eq('is_replied', false).eq('is_hidden', false)
     if (filter === 'questions') query = query.eq('sentiment', 'QUESTION')
     if (filter === 'hidden') query = query.eq('is_hidden', true)
@@ -65,14 +68,15 @@ export async function POST(request: Request) {
     }
 
     // Acao padrao: sync de comentarios das midias recentes
-    return handleSync()
+    const accountId = await resolveAccountId(request)
+    return handleSync(accountId)
   } catch (err) {
     logger.error('POST error', 'Comments', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
 
-async function handleSync() {
+async function handleSync(accountId: string | null) {
   const supabase = createServerSupabaseClient()
   const token = await getAccessToken()
   const userId = process.env.META_IG_USER_ID!
@@ -106,6 +110,7 @@ async function handleSync() {
           like_count: c.like_count ?? 0,
           is_hidden: c.hidden ?? false,
           sentiment,
+          account_id: accountId,
         },
         { onConflict: 'comment_id' }
       )

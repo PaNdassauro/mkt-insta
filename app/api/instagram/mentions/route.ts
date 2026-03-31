@@ -3,6 +3,7 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -12,6 +13,7 @@ const META_API = 'https://graph.facebook.com/v21.0'
  */
 export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const { searchParams } = new URL(request.url)
     const saved = searchParams.get('saved')
 
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
       .order('timestamp', { ascending: false })
       .limit(50)
 
+    if (accountId) query = query.eq('account_id', accountId)
     if (saved === 'true') query = query.eq('is_saved', true)
 
     const { data, error } = await query
@@ -66,14 +69,15 @@ export async function POST(request: Request) {
     }
 
     // Acao padrao: sync de mencoes
-    return handleSync()
+    const accountId = await resolveAccountId(request)
+    return handleSync(accountId)
   } catch (err) {
     logger.error('POST error', 'Mentions', { error: err as Error })
     return apiError(getErrorMessage(err))
   }
 }
 
-async function handleSync() {
+async function handleSync(accountId: string | null) {
   const supabase = createServerSupabaseClient()
   const token = await getAccessToken()
   const userId = process.env.META_IG_USER_ID!
@@ -95,6 +99,7 @@ async function handleSync() {
         media_type: item.media_type ?? null,
         media_url: item.media_url ?? null,
         timestamp: item.timestamp ?? null,
+        account_id: accountId,
       },
       { onConflict: 'media_id' }
     )

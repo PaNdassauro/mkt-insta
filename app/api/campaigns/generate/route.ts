@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { buildPrompt, type CampaignBriefing } from '@/lib/campaign/prompt-builder'
 import { extractJSON } from '@/lib/campaign/campaign-parser'
 import { logActivity } from '@/lib/activity'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * POST /api/campaigns/generate
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       return apiError('title, objective and theme are required', 400)
     }
 
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
     // 1. Criar campanha com status GENERATING
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
         duration_days: briefing.duration_days,
         start_date: briefing.start_date,
         preferred_formats: briefing.preferred_formats,
+        account_id: accountId,
       })
       .select()
       .single()

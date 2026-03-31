@@ -1,6 +1,7 @@
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/campaigns
@@ -10,12 +11,17 @@ export const GET = withErrorHandler(async (request: Request) => {
   const authError = validateDashboardRequest(request)
   if (authError) return authError
 
+  const accountId = await resolveAccountId(request)
   const supabase = createServerSupabaseClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('instagram_campaigns')
     .select('*, campaign_posts(count)')
     .order('created_at', { ascending: false })
+
+  if (accountId) query = query.eq('account_id', accountId)
+
+  const { data, error } = await query
 
   if (error) {
     throw new Error(`Failed to fetch campaigns: ${error.message}`)

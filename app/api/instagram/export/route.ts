@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { calcEngagementRate } from '@/lib/analytics'
 import { apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
+import { resolveAccountId } from '@/lib/account-context'
 
 function toCsv(headers: string[], rows: string[][]): string {
   const escape = (val: string) => {
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
   if (authError) return authError
 
   try {
+    const accountId = await resolveAccountId(request)
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') ?? 'posts'
     const supabase = createServerSupabaseClient()
@@ -31,10 +33,12 @@ export async function GET(request: Request) {
     let filename = ''
 
     if (type === 'posts') {
-      const { data, error } = await supabase
+      let postsQuery = supabase
         .from('instagram_posts')
         .select('*')
         .order('timestamp', { ascending: false })
+      if (accountId) postsQuery = postsQuery.eq('account_id', accountId)
+      const { data, error } = await postsQuery
       if (error) throw error
 
       const headers = ['Data', 'Tipo', 'Caption', 'Likes', 'Comentarios', 'Salvos', 'Compartilhamentos', 'Alcance', 'Impressoes', 'Engagement Rate', 'Score', 'Hashtags', 'Link']
@@ -57,10 +61,12 @@ export async function GET(request: Request) {
       filename = 'dashig-posts.csv'
 
     } else if (type === 'reels') {
-      const { data, error } = await supabase
+      let reelsQuery = supabase
         .from('instagram_reels')
         .select('*')
         .order('timestamp', { ascending: false })
+      if (accountId) reelsQuery = reelsQuery.eq('account_id', accountId)
+      const { data, error } = await reelsQuery
       if (error) throw error
 
       const headers = ['Data', 'Caption', 'Views', 'Likes', 'Comentarios', 'Salvos', 'Compartilhamentos', 'Alcance', 'Completion Rate', 'Engagement Rate', 'Score', 'Link']

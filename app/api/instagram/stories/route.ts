@@ -1,8 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { ITEMS_PER_PAGE } from '@/lib/constants'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 export const GET = withErrorHandler(async (request: Request) => {
+  const accountId = await resolveAccountId(request)
   const { searchParams } = new URL(request.url)
   const limit = Math.min(Number(searchParams.get('limit')) || ITEMS_PER_PAGE, 100)
   const offset = Number(searchParams.get('offset')) || 0
@@ -12,6 +14,8 @@ export const GET = withErrorHandler(async (request: Request) => {
   let query = supabase
     .from('instagram_stories')
     .select('*', { count: 'exact' })
+
+  if (accountId) query = query.eq('account_id', accountId)
 
   if (activeOnly) {
     query = query.gte('expires_at', new Date().toISOString())

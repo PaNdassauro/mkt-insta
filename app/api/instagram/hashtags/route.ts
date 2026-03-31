@@ -1,20 +1,25 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (request: Request) => {
+  const accountId = await resolveAccountId(request)
   const supabase = createServerSupabaseClient()
 
   // Buscar posts e reels com hashtags
-  const [postsRes, reelsRes] = await Promise.all([
-    supabase
-      .from('instagram_posts')
-      .select('hashtags, reach, engagement_rate, timestamp')
-      .not('hashtags', 'is', null),
-    supabase
-      .from('instagram_reels')
-      .select('hashtags, reach, likes, comments, saves, shares, timestamp')
-      .not('hashtags', 'is', null),
-  ])
+  let postsQuery = supabase
+    .from('instagram_posts')
+    .select('hashtags, reach, engagement_rate, timestamp')
+    .not('hashtags', 'is', null)
+  if (accountId) postsQuery = postsQuery.eq('account_id', accountId)
+
+  let reelsQuery = supabase
+    .from('instagram_reels')
+    .select('hashtags, reach, likes, comments, saves, shares, timestamp')
+    .not('hashtags', 'is', null)
+  if (accountId) reelsQuery = reelsQuery.eq('account_id', accountId)
+
+  const [postsRes, reelsRes] = await Promise.all([postsQuery, reelsQuery])
 
   if (postsRes.error) throw postsRes.error
   if (reelsRes.error) throw reelsRes.error

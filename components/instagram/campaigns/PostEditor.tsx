@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -50,7 +52,7 @@ export default function PostEditor({ post, campaignId, onUpdate }: PostEditorPro
     setLoadingSuggestions(true)
     try {
       const params = new URLSearchParams({ caption: captionEdit })
-      const res = await fetch(`/api/instagram/hashtags/suggest?${params}`)
+      const res = await fetchWithAccount(`/api/instagram/hashtags/suggest?${params}`)
       if (res.ok) {
         const data = await res.json()
         setSuggestions(data.suggestions ?? [])
@@ -73,7 +75,7 @@ export default function PostEditor({ post, campaignId, onUpdate }: PostEditorPro
   async function handleSave() {
     setSaving(true)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/posts/${post.id}`, {
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}/posts/${post.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,7 +98,7 @@ export default function PostEditor({ post, campaignId, onUpdate }: PostEditorPro
   async function handleStatusChange(newStatus: string) {
     setSaving(true)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/posts/${post.id}`, {
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}/posts/${post.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),

@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,7 +19,7 @@ export default function KnowledgeBaseManager() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch('/api/knowledge/documents')
+      const res = await fetchWithAccount('/api/knowledge/documents')
       if (!res.ok) throw new Error('Falha ao carregar documentos')
       const data = await res.json()
       setDocuments(data)
@@ -47,7 +49,7 @@ export default function KnowledgeBaseManager() {
       formData.append('file', file)
       formData.append('title', title)
 
-      const res = await fetch('/api/knowledge/ingest', {
+      const res = await fetchWithAccount('/api/knowledge/ingest', {
         method: 'POST',
         headers: {},
         body: formData,
@@ -69,7 +71,7 @@ export default function KnowledgeBaseManager() {
 
   async function handleToggleActive(id: string, isActive: boolean) {
     try {
-      const res = await fetch('/api/knowledge/documents', {
+      const res = await fetchWithAccount('/api/knowledge/documents', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_active: !isActive }),
@@ -86,7 +88,7 @@ export default function KnowledgeBaseManager() {
     if (!confirm(`Excluir "${title}" e todos os seus chunks?`)) return
 
     try {
-      const res = await fetch('/api/knowledge/documents', {
+      const res = await fetchWithAccount('/api/knowledge/documents', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -104,7 +106,7 @@ export default function KnowledgeBaseManager() {
     setError(null)
 
     try {
-      const res = await fetch('/api/knowledge/scrape', {
+      const res = await fetchWithAccount('/api/knowledge/scrape', {
         method: 'POST',
         headers: {},
       })

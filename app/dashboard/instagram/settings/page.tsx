@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,7 +32,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch('/api/settings')
+        const res = await fetchWithAccount('/api/settings')
         if (res.ok) {
           setSettings(await res.json())
         }
@@ -46,12 +48,12 @@ export default function SettingsPage() {
   async function handleRefreshToken() {
     setRefreshing(true)
     try {
-      const res = await fetch('/api/instagram/refresh-token', { method: 'POST' })
+      const res = await fetchWithAccount('/api/instagram/refresh-token', { method: 'POST' })
       const data = await res.json()
       if (res.ok) {
         toast.success('Token renovado com sucesso')
         // Reload settings to get updated token status
-        const settingsRes = await fetch('/api/settings')
+        const settingsRes = await fetchWithAccount('/api/settings')
         if (settingsRes.ok) setSettings(await settingsRes.json())
       } else {
         toast.error(data.error ?? 'Erro ao renovar token')
@@ -66,7 +68,7 @@ export default function SettingsPage() {
   async function handleTestTelegram() {
     setTestingTelegram(true)
     try {
-      const res = await fetch('/api/settings/telegram-test', { method: 'POST' })
+      const res = await fetchWithAccount('/api/settings/telegram-test', { method: 'POST' })
       const data = await res.json()
       if (res.ok) {
         toast.success('Mensagem de teste enviada')

@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
@@ -74,7 +76,7 @@ export default function CampaignComparePage() {
 
   // Fetch campaign list
   useEffect(() => {
-    fetch('/api/campaigns')
+    fetchWithAccount('/api/campaigns')
       .then((res) => res.json())
       .then((data: CampaignWithCount[]) => setCampaigns(Array.isArray(data) ? data : []))
       .catch(() => setError('Erro ao carregar campanhas.'))
@@ -111,7 +113,7 @@ export default function CampaignComparePage() {
     }
 
     try {
-      const res = await fetch(`/api/campaigns/compare?tags=${encodeURIComponent(allTags.join(','))}`)
+      const res = await fetchWithAccount(`/api/campaigns/compare?tags=${encodeURIComponent(allTags.join(','))}`)
       const json = await res.json() as { data?: CompareResponse }
 
       if (!res.ok) {

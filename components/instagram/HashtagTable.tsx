@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -28,7 +30,7 @@ export default function HashtagTable() {
   const [sortField, setSortField] = useState<keyof HashtagData>('impact')
 
   useEffect(() => {
-    fetch('/api/instagram/hashtags')
+    fetchWithAccount('/api/instagram/hashtags')
       .then((r) => r.json())
       .then((json) => setHashtags(json.data ?? []))
       .catch(() => {})

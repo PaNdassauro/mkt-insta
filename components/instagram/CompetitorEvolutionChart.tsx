@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -72,7 +74,7 @@ export default function CompetitorEvolutionChart({ competitors }: CompetitorEvol
   useEffect(() => {
     async function fetchSnapshots() {
       try {
-        const res = await fetch('/api/instagram/competitor-snapshots')
+        const res = await fetchWithAccount('/api/instagram/competitor-snapshots')
         if (!res.ok) return
         const json = await res.json()
         setSnapshots(json.data ?? [])

@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -134,7 +136,7 @@ export default function ActivityPage() {
           params.set('entity_type', entityFilter)
         }
 
-        const res = await fetch(`/api/settings/activity?${params}`)
+        const res = await fetchWithAccount(`/api/settings/activity?${params}`)
         if (!res.ok) throw new Error('Falha ao carregar atividades')
 
         const data = await res.json()

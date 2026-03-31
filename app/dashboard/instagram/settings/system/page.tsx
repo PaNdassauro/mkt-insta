@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -110,7 +112,7 @@ export default function SystemHealthPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/system')
+      const res = await fetchWithAccount('/api/settings/system')
       if (res.ok) {
         setData(await res.json())
       } else {
@@ -130,7 +132,7 @@ export default function SystemHealthPage() {
   async function handleSync() {
     setSyncing(true)
     try {
-      const res = await fetch('/api/instagram/sync', { method: 'POST' })
+      const res = await fetchWithAccount('/api/instagram/sync', { method: 'POST' })
       if (res.ok) {
         toast.success('Sync iniciado com sucesso')
         // Refresh data after a short delay
@@ -149,7 +151,7 @@ export default function SystemHealthPage() {
   async function handleRefreshToken() {
     setRefreshingToken(true)
     try {
-      const res = await fetch('/api/instagram/refresh-token', { method: 'POST' })
+      const res = await fetchWithAccount('/api/instagram/refresh-token', { method: 'POST' })
       const body = await res.json()
       if (res.ok) {
         toast.success('Token renovado com sucesso')
@@ -167,7 +169,7 @@ export default function SystemHealthPage() {
   async function handleTestTelegram() {
     setTestingTelegram(true)
     try {
-      const res = await fetch('/api/settings/telegram-test', { method: 'POST' })
+      const res = await fetchWithAccount('/api/settings/telegram-test', { method: 'POST' })
       const body = await res.json()
       if (res.ok) {
         toast.success('Mensagem de teste enviada')
@@ -184,7 +186,7 @@ export default function SystemHealthPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await fetch('/api/admin/export-all')
+      const res = await fetchWithAccount('/api/admin/export-all')
       if (res.ok) {
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)

@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,7 +39,7 @@ export default function StrategyChatPanel({ campaignId }: StrategyChatPanelProps
     setLoading(true)
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/chat`, {
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages }),

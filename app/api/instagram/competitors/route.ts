@@ -2,15 +2,20 @@ import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
-    const { data: competitors, error: compError } = await supabase
+    let competitorsQuery = supabase
       .from('instagram_competitors')
       .select('*')
       .order('added_at', { ascending: false })
+    if (accountId) competitorsQuery = competitorsQuery.eq('account_id', accountId)
+
+    const { data: competitors, error: compError } = await competitorsQuery
 
     if (compError) throw compError
 
@@ -57,10 +62,12 @@ export async function POST(request: Request) {
       return apiError('username is required', 400)
     }
 
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
-    const payload: Record<string, string> = {
+    const payload: Record<string, string | null> = {
       username: username.toLowerCase().replace('@', ''),
       display_name: display_name || username,
+      account_id: accountId,
     }
     if (ig_user_id) payload.ig_user_id = ig_user_id
 

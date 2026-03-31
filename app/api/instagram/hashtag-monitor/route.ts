@@ -3,6 +3,7 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 const META_API = 'https://graph.facebook.com/v21.0'
 
@@ -10,14 +11,20 @@ const META_API = 'https://graph.facebook.com/v21.0'
  * GET /api/instagram/hashtag-monitor
  * Lista hashtags monitoradas com snapshots.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('monitored_hashtags')
       .select('*, hashtag_snapshots(date, top_media, recent_media)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
+
+    if (accountId) query = query.eq('account_id', accountId)
+
+    const { data, error } = await query
 
     if (error) throw error
     return apiSuccess(data ?? [])
@@ -42,7 +49,8 @@ export async function POST(request: Request) {
     }
 
     if (body.action === 'add') {
-      return handleAdd(body.hashtag)
+      const accountId = await resolveAccountId(request)
+      return handleAdd(body.hashtag, accountId)
     }
 
     if (body.action === 'remove') {
@@ -56,7 +64,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleAdd(hashtag: string) {
+async function handleAdd(hashtag: string, accountId: string | null) {
   if (!hashtag) return apiError('hashtag is required', 400)
 
   const clean = hashtag.replace(/^#/, '').toLowerCase().trim()
@@ -74,7 +82,7 @@ async function handleAdd(hashtag: string) {
   const { data, error } = await supabase
     .from('monitored_hashtags')
     .upsert(
-      { hashtag: clean, ig_hashtag_id: igHashtagId ?? null },
+      { hashtag: clean, ig_hashtag_id: igHashtagId ?? null, account_id: accountId },
       { onConflict: 'hashtag' }
     )
     .select()

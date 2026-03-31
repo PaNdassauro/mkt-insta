@@ -2,21 +2,27 @@ import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/instagram/messages
  * Lista conversas com ultimas mensagens.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('instagram_conversations')
       .select('*, instagram_messages(content, direction, timestamp, is_auto_reply)')
       .eq('is_archived', false)
       .order('last_message_at', { ascending: false })
       .limit(50)
+
+    if (accountId) query = query.eq('account_id', accountId)
+
+    const { data, error } = await query
 
     if (error) throw error
 

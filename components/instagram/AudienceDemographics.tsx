@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState, useEffect } from 'react'
 import {
   ResponsiveContainer,
@@ -25,7 +27,7 @@ export default function AudienceDemographics() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/instagram/audience')
+    fetchWithAccount('/api/instagram/audience')
       .then((r) => r.json())
       .then((json) => setAudience(json.data))
       .catch(() => {})

@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
+import { resolveAccountId } from '@/lib/account-context'
 
 /**
  * GET /api/instagram/comments/sentiment
@@ -12,17 +13,22 @@ export async function GET(request: Request) {
   if (authError) return authError
 
   try {
+    const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
 
     // Agregacao por semana e sentimento nos ultimos 90 dias
     const since = new Date()
     since.setDate(since.getDate() - 90)
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('instagram_comments')
       .select('sentiment, timestamp')
       .gte('timestamp', since.toISOString())
       .order('timestamp', { ascending: true })
+
+    if (accountId) query = query.eq('account_id', accountId)
+
+    const { data, error } = await query
 
     if (error) throw error
 

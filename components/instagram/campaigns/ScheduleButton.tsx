@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
@@ -27,7 +29,7 @@ export default function ScheduleButton({
     setError(null)
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/schedule`, {
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}/schedule`, {
         method: 'POST',
       })
 

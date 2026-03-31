@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchWithAccount } from '@/lib/fetch-with-account'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
@@ -32,7 +34,7 @@ export default function GeneratingScreen() {
     if (!campaignId) return
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}`)
+      const res = await fetchWithAccount(`/api/campaigns/${campaignId}`)
       if (!res.ok) {
         setPollFailures((prev) => prev + 1)
         return
