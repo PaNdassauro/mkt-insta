@@ -1,27 +1,12 @@
 // Cron schedule: 0 11 * * 1 (Monday 8am BRT / 11:00 UTC)
-// Syncs public profile data for all tracked competitors via Meta Graph API.
+// Syncs public profile data for all tracked competitors via Business Discovery API.
 
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getAccessToken } from '@/lib/meta-client'
 import { validateCronSecret } from '@/lib/auth'
-import { apiSuccess, getErrorMessage, withErrorHandler } from '@/lib/api-response'
+import { apiSuccess, withErrorHandler } from '@/lib/api-response'
 import { logger } from '@/lib/logger'
 import { META_API_BASE_URL } from '@/lib/constants'
-
-interface CompetitorRow {
-  id: string
-  username: string
-  ig_user_id: string | null
-}
-
-interface CompetitorProfileResponse {
-  id: string
-  username?: string
-  followers_count?: number
-  media_count?: number
-  biography?: string
-  profile_picture_url?: string
-}
 
 export const POST = withErrorHandler(async (request: Request) => {
   const authError = validateCronSecret(request)
@@ -29,85 +14,73 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const supabase = createServerSupabaseClient()
   const token = await getAccessToken()
+  const userId = process.env.META_IG_USER_ID ?? 'me'
   const today = new Date().toISOString().split('T')[0]
 
-  // Fetch all competitors that have an ig_user_id
+  // Buscar todos os concorrentes ativos
   const { data: competitors, error: fetchError } = await supabase
     .from('instagram_competitors')
     .select('id, username, ig_user_id')
-    .not('ig_user_id', 'is', null)
 
   if (fetchError) throw new Error(fetchError.message)
 
-  const rows = (competitors ?? []) as CompetitorRow[]
-
-  if (rows.length === 0) {
-    logger.info('No competitors with ig_user_id to sync', 'DashIG Sync Competitors')
-    return apiSuccess({ synced: 0, skipped: 0, message: 'No competitors with ig_user_id' })
+  if (!competitors || competitors.length === 0) {
+    return apiSuccess({ synced: 0, total: 0, message: 'Nenhum concorrente cadastrado' })
   }
 
   let synced = 0
   let skipped = 0
-  const errors: string[] = []
 
-  for (const comp of rows) {
+  for (const comp of competitors) {
     try {
-      const url = `${META_API_BASE_URL}/${comp.ig_user_id}?fields=followers_count,media_count,biography,username,profile_picture_url&access_token=${token}`
-      const res = await fetch(url)
+      // Usar Business Discovery API — funciona com username, nao precisa de ig_user_id
+      const fields = 'username,name,followers_count,media_count,biography,profile_picture_url,ig_id'
+      const res = await fetch(
+        `${META_API_BASE_URL}/${userId}?fields=business_discovery.fields(${fields})&business_discovery.username=${comp.username}&access_token=${token}`
+      )
 
       if (!res.ok) {
         const body = await res.text()
-        logger.warn(`Failed to fetch profile for @${comp.username}`, 'DashIG Sync Competitors', {
-          status: res.status,
-          body,
-        })
-        errors.push(`@${comp.username}: HTTP ${res.status}`)
+        logger.warn(`Business Discovery failed for @${comp.username}`, 'Sync Competitors', { status: res.status, body })
         skipped++
         continue
       }
 
-      const profile = (await res.json()) as CompetitorProfileResponse
+      const data = await res.json()
+      const biz = data.business_discovery
 
-      // Upsert snapshot for today (unique on competitor_id + date)
-      const { error: upsertError } = await supabase
-        .from('instagram_competitor_snapshots')
-        .upsert(
-          {
-            competitor_id: comp.id,
-            date: today,
-            followers_count: profile.followers_count ?? null,
-            media_count: profile.media_count ?? null,
-          },
-          { onConflict: 'competitor_id,date' }
-        )
-
-      if (upsertError) {
-        logger.error(`Upsert failed for @${comp.username}`, 'DashIG Sync Competitors', {
-          error: upsertError as unknown as Error,
-        })
-        errors.push(`@${comp.username}: ${upsertError.message}`)
+      if (!biz) {
+        logger.warn(`No business_discovery data for @${comp.username}`, 'Sync Competitors')
         skipped++
         continue
       }
 
-      logger.info(`Synced @${comp.username}: ${profile.followers_count} followers`, 'DashIG Sync Competitors')
+      // Atualizar ig_user_id e display_name se nao existiam
+      const updates: Record<string, string | null> = {}
+      if (!comp.ig_user_id && biz.ig_id) updates.ig_user_id = String(biz.ig_id)
+      if (biz.name) updates.display_name = biz.name
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('instagram_competitors').update(updates).eq('id', comp.id)
+      }
+
+      // Upsert snapshot
+      await supabase.from('instagram_competitor_snapshots').upsert(
+        {
+          competitor_id: comp.id,
+          date: today,
+          followers_count: biz.followers_count ?? null,
+          media_count: biz.media_count ?? null,
+        },
+        { onConflict: 'competitor_id,date' }
+      )
+
+      logger.info(`Synced @${comp.username}: ${biz.followers_count} followers`, 'Sync Competitors')
       synced++
     } catch (err) {
-      logger.error(`Error syncing @${comp.username}`, 'DashIG Sync Competitors', {
-        error: err as Error,
-      })
-      errors.push(`@${comp.username}: ${getErrorMessage(err)}`)
+      logger.error(`Error syncing @${comp.username}`, 'Sync Competitors', { error: err as Error })
       skipped++
     }
   }
 
-  logger.info(`Competitor sync complete: ${synced} synced, ${skipped} skipped`, 'DashIG Sync Competitors')
-
-  return apiSuccess({
-    synced,
-    skipped,
-    total: rows.length,
-    date: today,
-    ...(errors.length > 0 ? { errors } : {}),
-  })
-}, 'DashIG Sync Competitors')
+  return apiSuccess({ synced, skipped, total: competitors.length, date: today })
+}, 'Sync Competitors')

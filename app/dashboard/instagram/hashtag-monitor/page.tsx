@@ -40,6 +40,13 @@ export default function HashtagMonitorPage() {
 
   useEffect(() => { fetchHashtags() }, [fetchHashtags])
 
+  // Auto-selecionar primeira hashtag
+  useEffect(() => {
+    if (!selectedId && hashtags.length > 0) {
+      setSelectedId(hashtags[0].id)
+    }
+  }, [hashtags, selectedId])
+
   async function addHashtag() {
     if (!newHashtag.trim()) return
     try {
@@ -167,75 +174,33 @@ export default function HashtagMonitorPage() {
           </div>
 
           {/* Detail view */}
-          {selected && latestSnapshot ? (
+          {selected ? (
             <div className="space-y-4">
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Top Posts — #{selected.hashtag}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {latestSnapshot.top_media.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum dado disponivel</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {latestSnapshot.top_media.slice(0, 10).map((post, i) => (
-                        <div key={post.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs truncate">
-                              {i + 1}. {post.caption?.slice(0, 80) ?? '(sem caption)'}
-                            </p>
-                          </div>
-                          <div className="flex gap-3 text-[10px] text-muted-foreground shrink-0 ml-3">
-                            <span>❤ {post.like_count ?? 0}</span>
-                            <span>💬 {post.comments_count ?? 0}</span>
-                            {post.permalink && (
-                              <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-primary">
-                                Ver
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Posts Recentes — #{selected.hashtag}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {latestSnapshot.recent_media.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum dado disponivel</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {latestSnapshot.recent_media.slice(0, 10).map((post, i) => (
-                        <div key={post.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs truncate">
-                              {i + 1}. {post.caption?.slice(0, 80) ?? '(sem caption)'}
-                            </p>
-                          </div>
-                          <div className="flex gap-3 text-[10px] text-muted-foreground shrink-0 ml-3">
-                            <span>❤ {post.like_count ?? 0}</span>
-                            <span>💬 {post.comments_count ?? 0}</span>
-                            {post.permalink && (
-                              <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-primary">
-                                Ver
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {!latestSnapshot ? (
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    <p className="text-2xl mb-2">🔄</p>
+                    <p className="text-sm">Nenhum snapshot para #{selected.hashtag}</p>
+                    <p className="text-xs mt-1">Clique em &ldquo;Sincronizar Todas&rdquo; para buscar dados</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <MediaSection
+                    title={`Top Posts — #${selected.hashtag}`}
+                    media={latestSnapshot.top_media}
+                    emptyMessage="A API do Instagram nao retornou top posts para esta hashtag"
+                  />
+                  <MediaSection
+                    title={`Posts Recentes — #${selected.hashtag}`}
+                    media={latestSnapshot.recent_media}
+                    emptyMessage="A API do Instagram nao retornou posts recentes para esta hashtag"
+                  />
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    Dados de {new Date(latestSnapshot.date).toLocaleDateString('pt-BR')}
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <Card className="border-0 shadow-sm">
@@ -247,5 +212,45 @@ export default function HashtagMonitorPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function MediaSection({ title, media, emptyMessage }: {
+  title: string
+  media: Array<{ id: string; caption?: string; like_count?: number; comments_count?: number; permalink?: string }>
+  emptyMessage: string
+}) {
+  return (
+    <Card className="border-0 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {media.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{emptyMessage}</p>
+        ) : (
+          <div className="space-y-2">
+            {media.slice(0, 10).map((post, i) => (
+              <div key={post.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs truncate">
+                    {i + 1}. {post.caption?.slice(0, 80) ?? '(sem caption)'}
+                  </p>
+                </div>
+                <div className="flex gap-3 text-[10px] text-muted-foreground shrink-0 ml-3">
+                  <span>❤ {post.like_count ?? 0}</span>
+                  <span>💬 {post.comments_count ?? 0}</span>
+                  {post.permalink && (
+                    <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-primary">
+                      Ver
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

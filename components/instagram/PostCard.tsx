@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +19,7 @@ const MEDIA_TYPE_LABELS: Record<string, string> = {
 }
 
 export default function PostCard({ post }: PostCardProps) {
+  const [imgError, setImgError] = useState(false)
   const scoreColors = post.content_score
     ? CONTENT_SCORE_COLORS[post.content_score]
     : null
@@ -35,17 +37,19 @@ export default function PostCard({ post }: PostCardProps) {
         className="block"
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
-          {post.thumbnail_url ? (
+          {post.thumbnail_url && !imgError ? (
             <Image
               src={post.thumbnail_url}
               alt={post.caption?.slice(0, 50) ?? 'Post'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              onError={() => setImgError(true)}
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-3xl text-muted-foreground/30">
-              📷
+            <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground/40">
+              <span className="text-3xl">📷</span>
+              <span className="text-[9px]">Imagem expirada</span>
             </div>
           )}
           {/* Overlay com badges */}

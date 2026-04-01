@@ -21,6 +21,8 @@ export async function GET(request: Request) {
       .select('*, hashtag_snapshots(date, top_media, recent_media)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
+      .order('date', { ascending: false, referencedTable: 'hashtag_snapshots' })
+      .limit(1, { referencedTable: 'hashtag_snapshots' })
 
     if (accountId) query = query.eq('account_id', accountId)
 

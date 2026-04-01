@@ -3,6 +3,7 @@
 import { fetchWithAccount } from '@/lib/fetch-with-account'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +27,27 @@ export default function CompetitorTable() {
   const [isLoading, setIsLoading] = useState(true)
   const [newUsername, setNewUsername] = useState('')
   const [adding, setAdding] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
+
+  const syncCompetitors = async () => {
+    setSyncingAll(true)
+    try {
+      // Re-adicionar cada concorrente para buscar dados via Business Discovery
+      for (const comp of competitors) {
+        await fetchWithAccount('/api/instagram/competitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: comp.username }),
+        })
+      }
+      toast.success('Dados de concorrentes atualizados')
+      await fetchData()
+    } catch {
+      toast.error('Erro ao sincronizar concorrentes')
+    } finally {
+      setSyncingAll(false)
+    }
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -83,7 +105,14 @@ export default function CompetitorTable() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base font-semibold">Concorrentes Monitorados</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Benchmarking com dados publicos</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Benchmarking via Instagram Business Discovery</p>
+          </div>
+          <div>
+            {competitors.length > 0 && (
+              <Button size="sm" variant="outline" onClick={syncCompetitors} disabled={syncingAll}>
+                {syncingAll ? 'Sincronizando...' : 'Atualizar dados'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
