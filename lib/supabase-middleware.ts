@@ -37,6 +37,8 @@ export async function updateSession(request: NextRequest) {
     '/api/instagram/report',
     '/api/instagram/refresh-token',
     '/api/knowledge/scrape',
+    '/api/auth/instagram',
+    '/api/instagram/sync-competitors',
   ]
   const isPublic = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
   const isApi = request.nextUrl.pathname.startsWith('/api/')

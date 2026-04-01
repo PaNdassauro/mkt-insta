@@ -2,7 +2,8 @@
 
 import { fetchWithAccount } from '@/lib/fetch-with-account'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,10 +13,27 @@ import { useCurrentAccount, type InstagramAccount } from '@/hooks/useCurrentAcco
 
 export default function AccountsPage() {
   const { accounts, currentAccount, setCurrentAccount, loading, refetch } = useCurrentAccount()
+  const searchParams = useSearchParams()
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  // Feedback do OAuth callback
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    if (success) {
+      toast.success(`${success} conta(s) conectada(s) com sucesso!`)
+      refetch()
+      // Limpar params da URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    if (error) {
+      toast.error(decodeURIComponent(error))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [searchParams, refetch])
 
   // Form state
   const [formLabel, setFormLabel] = useState('')
@@ -128,17 +146,24 @@ export default function AccountsPage() {
             Gerencie as contas Instagram conectadas ao DashIG
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? 'Cancelar' : 'Adicionar Conta'}
-        </Button>
+        <div className="flex gap-2">
+          <a href="/api/auth/instagram">
+            <Button size="sm">
+              Conectar com Instagram
+            </Button>
+          </a>
+          <Button size="sm" variant="outline" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? 'Cancelar' : 'Adicionar manual'}
+          </Button>
+        </div>
       </div>
 
       {/* Info banner */}
       <Card className="border-0 shadow-sm bg-blue-50 dark:bg-blue-950/30">
         <CardContent className="p-4">
           <p className="text-sm text-blue-700 dark:text-blue-300">
-            A filtragem de dados por conta sera implementada em breve. Por enquanto, o seletor de
-            conta armazena a preferencia para uso futuro.
+            Clique em <strong>Conectar com Instagram</strong> para vincular uma conta automaticamente via login no Meta.
+            O token e renovado automaticamente. Para contas sem acesso ao login, use &ldquo;Adicionar manual&rdquo;.
           </p>
         </CardContent>
       </Card>
