@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { fetchWithAccount } from '@/lib/fetch-with-account'
 
 import { useState, useEffect } from 'react'
@@ -12,6 +13,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentAccount, type InstagramAccount } from '@/hooks/useCurrentAccount'
 
 export default function AccountsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <AccountsPageContent />
+    </Suspense>
+  )
+}
+
+function AccountsPageContent() {
   const { accounts, currentAccount, setCurrentAccount, loading, refetch } = useCurrentAccount()
   const searchParams = useSearchParams()
 
