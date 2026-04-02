@@ -23,7 +23,7 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   let accountQuery = supabase
     .from('instagram_accounts')
-    .select('id, ig_user_id')
+    .select('id, ig_user_id, access_token')
     .eq('is_active', true)
 
   if (singleAccountId) {
@@ -32,9 +32,13 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const { data: activeAccounts } = await accountQuery
 
+  const validAccounts = (activeAccounts ?? []).filter(
+    (a) => a.access_token && a.access_token !== 'pending_manual_update'
+  )
+
   const accounts: SyncAccount[] = []
-  if (activeAccounts && activeAccounts.length > 0) {
-    accounts.push(...activeAccounts)
+  if (validAccounts.length > 0) {
+    accounts.push(...validAccounts.map((a) => ({ id: a.id, ig_user_id: a.ig_user_id })))
   } else {
     const envUserId = process.env.META_IG_USER_ID
     if (!envUserId) {
