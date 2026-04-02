@@ -7,6 +7,7 @@ import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
 import { logger } from '@/lib/logger'
 import { META_API_BASE_URL } from '@/lib/constants'
+import { alertCompetitorGrowth } from '@/lib/telegram'
 
 export const POST = withErrorHandler(async (request: Request) => {
   const authError = validateCronSecret(request)
@@ -73,6 +74,32 @@ export const POST = withErrorHandler(async (request: Request) => {
         },
         { onConflict: 'competitor_id,date' }
       )
+
+      // Check for rapid follower growth (>5% in 7 days) — alert via Telegram
+      try {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+
+        const { data: prevSnapshot } = await supabase
+          .from('instagram_competitor_snapshots')
+          .select('followers_count')
+          .eq('competitor_id', comp.id)
+          .lte('date', sevenDaysAgoStr)
+          .order('date', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (prevSnapshot?.followers_count && biz.followers_count) {
+          const growthPct = ((biz.followers_count - prevSnapshot.followers_count) / prevSnapshot.followers_count) * 100
+          if (growthPct > 5) {
+            logger.info(`Competitor @${comp.username} grew ${growthPct.toFixed(1)}% in 7 days`, 'Sync Competitors')
+            await alertCompetitorGrowth(comp.username, biz.followers_count, growthPct)
+          }
+        }
+      } catch {
+        // Non-critical — skip alert if previous snapshot not found
+      }
 
       logger.info(`Synced @${comp.username}: ${biz.followers_count} followers`, 'Sync Competitors')
       synced++

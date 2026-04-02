@@ -21,6 +21,13 @@ export interface ReportHashtag {
   impact: number
 }
 
+export interface ReportCompetitor {
+  username: string
+  followers: number
+  growthPct: number
+  mediaCount: number
+}
+
 export interface MonthlyReport {
   month: string
   year: number
@@ -56,6 +63,7 @@ export interface MonthlyReport {
   recommendations: ReportRecommendation[]
   sentimentTotals: SentimentTotals
   topHashtags: ReportHashtag[]
+  competitors: ReportCompetitor[]
 }
 
 export async function generateMonthlyReport(): Promise<MonthlyReport> {
@@ -244,6 +252,44 @@ export async function generateMonthlyReport(): Promise<MonthlyReport> {
     // silenciar erro de hashtags
   }
 
+  // ---- Benchmarking competitivo ----
+  const competitors: ReportCompetitor[] = []
+  try {
+    const { data: comps } = await supabase
+      .from('instagram_competitors')
+      .select('id, username')
+
+    if (comps && comps.length > 0) {
+      for (const comp of comps) {
+        // Get snapshots within report month for this competitor
+        const { data: compSnaps } = await supabase
+          .from('instagram_competitor_snapshots')
+          .select('followers_count, media_count, date')
+          .eq('competitor_id', comp.id)
+          .gte('date', firstOfMonth.toISOString().split('T')[0])
+          .lte('date', lastOfMonth.toISOString().split('T')[0])
+          .order('date', { ascending: true })
+
+        if (compSnaps && compSnaps.length > 0) {
+          const firstCompSnap = compSnaps[0]
+          const lastCompSnap = compSnaps[compSnaps.length - 1]
+          const growthPct = firstCompSnap.followers_count && firstCompSnap.followers_count > 0
+            ? ((lastCompSnap.followers_count - firstCompSnap.followers_count) / firstCompSnap.followers_count) * 100
+            : 0
+
+          competitors.push({
+            username: comp.username,
+            followers: lastCompSnap.followers_count ?? 0,
+            growthPct,
+            mediaCount: lastCompSnap.media_count ?? 0,
+          })
+        }
+      }
+    }
+  } catch {
+    // silenciar erro de competidores
+  }
+
   return {
     month: monthStr,
     year,
@@ -279,6 +325,7 @@ export async function generateMonthlyReport(): Promise<MonthlyReport> {
     recommendations,
     sentimentTotals,
     topHashtags,
+    competitors,
   }
 }
 
@@ -415,6 +462,27 @@ export function reportToHtml(report: MonthlyReport): string {
       <td>${formatNumber(h.impact)}</td>
     </tr>`).join('')}
   </table>` : ''}
+
+  ${report.competitors.length > 0 ? `
+  <h2>Benchmarking Competitivo</h2>
+  <table>
+    <tr><th>Perfil</th><th>Seguidores</th><th>Crescimento</th><th>Posts no mes</th></tr>
+    <tr>
+      <td><strong>@welcomeweddings</strong></td>
+      <td>${formatNumber(report.account.followers)}</td>
+      <td>${report.account.followers > 0 ? formatPercent((report.account.followersDelta / (report.account.followers - report.account.followersDelta)) * 100) : '—'}</td>
+      <td>${report.totals.postsCount + report.totals.reelsCount}</td>
+    </tr>
+    ${report.competitors.map((c) => `
+    <tr>
+      <td>@${escapeHtml(c.username)}</td>
+      <td>${formatNumber(c.followers)}</td>
+      <td>${formatPercent(c.growthPct)}</td>
+      <td>${formatNumber(c.mediaCount)}</td>
+    </tr>`).join('')}
+  </table>
+  <p style="font-size:11px;color:#999;margin-top:4px;">Engagement medio proprio: <strong>${formatPercent(report.totals.avgEngagement)}</strong></p>
+  ` : ''}
 
   ${report.recommendations.length > 0 ? `
   <h2>Recomendacoes</h2>

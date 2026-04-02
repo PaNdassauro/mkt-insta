@@ -93,6 +93,17 @@ export async function alertEngagementAnomaly(
 }
 
 /**
+ * Alerta: concorrente com crescimento acelerado de seguidores.
+ */
+export async function alertCompetitorGrowth(username: string, followers: number, growthPct: number) {
+  await sendTelegramMessage(
+    `🏆 <b>DashIG — Concorrente em Alta</b>\n\n` +
+    `@${username} cresceu <b>${growthPct.toFixed(1)}%</b> na ultima semana.\n` +
+    `Seguidores atuais: <b>${followers.toLocaleString('pt-BR')}</b>`
+  )
+}
+
+/**
  * Alerta: sync diario completado com resumo.
  */
 export async function alertSyncCompleted(posts: number, reels: number) {

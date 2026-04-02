@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useSessionCheck } from '@/hooks/useSessionCheck'
 import { useNotificationBadges } from '@/hooks/useNotificationBadges'
 import { useCurrentAccount } from '@/hooks/useCurrentAccount'
+import { PeriodSelector } from '@/components/PeriodSelector'
 
 interface NavGroup {
   label: string
@@ -363,6 +364,9 @@ export default function InstagramLayout({
       {/* Main content */}
       <main className="flex-1 overflow-auto pt-[7.5rem] md:pt-0">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
+          <div className="mb-4 flex justify-end">
+            <PeriodSelector />
+          </div>
           <ErrorBoundary>
             {children}
           </ErrorBoundary>

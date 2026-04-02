@@ -1,5 +1,6 @@
 import CompetitorTable from '@/components/instagram/CompetitorTable'
 import CompetitorEvolutionWrapper from '@/components/instagram/CompetitorEvolutionWrapper'
+import CompetitorInsights from '@/components/instagram/CompetitorInsights'
 
 export default function CompetitorsPage() {
   return (
@@ -13,6 +14,7 @@ export default function CompetitorsPage() {
 
       <CompetitorTable />
       <CompetitorEvolutionWrapper />
+      <CompetitorInsights />
     </div>
   )
 }

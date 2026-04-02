@@ -16,10 +16,19 @@ export const POST = withErrorHandler(async (request: Request) => {
   const supabase = createServerSupabaseClient()
 
   // Multi-account: buscar todas as contas ativas
-  const { data: activeAccounts } = await supabase
+  // Se X-Account-Id presente, sincronizar apenas essa conta
+  const singleAccountId = request.headers.get('x-account-id')
+
+  let accountQuery = supabase
     .from('instagram_accounts')
     .select('id, ig_user_id')
     .eq('is_active', true)
+
+  if (singleAccountId) {
+    accountQuery = accountQuery.eq('id', singleAccountId)
+  }
+
+  const { data: activeAccounts } = await accountQuery
 
   const accounts: SyncAccount[] = []
   if (activeAccounts && activeAccounts.length > 0) {
