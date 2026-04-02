@@ -348,7 +348,18 @@ export default function EditorialCalendar() {
                                   </div>
                                 )}
                                 {entry.media_url && (
-                                  <div className="text-[8px] text-emerald-600 mt-0.5">📎 Midia</div>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={entry.media_url}
+                                      alt="Thumbnail"
+                                      className="h-5 w-5 rounded object-cover border border-border/40"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none'
+                                      }}
+                                    />
+                                    <span className="text-[8px] text-emerald-600">Midia</span>
+                                  </div>
                                 )}
                                 {entry.auto_publish && entry.status === 'APPROVED' && (
                                   <div className="text-[8px] text-indigo-500 mt-0.5">⏰ Auto</div>

@@ -14,6 +14,7 @@ import PostEditor from '@/components/instagram/campaigns/PostEditor'
 import CampaignTimeline from '@/components/instagram/campaigns/CampaignTimeline'
 import ScheduleButton from '@/components/instagram/campaigns/ScheduleButton'
 import StrategyChatPanel from '@/components/instagram/campaigns/StrategyChatPanel'
+import CanvaAssetGenerator from '@/components/instagram/campaigns/CanvaAssetGenerator'
 import type { Campaign, CampaignPost } from '@/types/instagram'
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -202,17 +203,7 @@ export default function CampaignEditorPage() {
             </Button>
           )}
 
-          {approvedCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              title="Em breve — integracao com Canva"
-              className="opacity-60 cursor-not-allowed"
-            >
-              Gerar Assets (Canva)
-            </Button>
-          )}
+          <CanvaAssetGenerator campaignId={campaignId} posts={posts} />
 
           <Link
             href={`/dashboard/instagram/campaigns/${campaignId}/report`}
