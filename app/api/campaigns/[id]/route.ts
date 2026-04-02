@@ -4,6 +4,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/campaigns/[id]
  * Retorna uma campanha com seus posts.

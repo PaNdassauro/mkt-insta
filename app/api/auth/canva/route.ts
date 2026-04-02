@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/auth/canva
  * Redireciona o usuario para o Canva OAuth com PKCE.

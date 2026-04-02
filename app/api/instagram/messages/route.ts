@@ -4,6 +4,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/instagram/messages
  * Lista conversas com ultimas mensagens.

@@ -3,6 +3,8 @@ import { logger } from '@/lib/logger'
 import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, apiError, withErrorHandler } from '@/lib/api-response'
 import { alertTokenExpiring, alertSyncCompleted, alertEngagementAnomaly } from '@/lib/telegram'
+
+export const dynamic = "force-dynamic"
 import {
   getAccessToken,
   checkTokenExpiration,

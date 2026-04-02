@@ -7,11 +7,11 @@
 
 Voce esta desenvolvendo o **DashIG**, um dashboard de analytics, campanhas e engajamento de Instagram para a **Welcome Weddings** (@welcomeweddings). Antes de comecar qualquer tarefa, leia o `ARCHITECTURE.md` (estrutura tecnica) e o `PROMPT_CONTEXT.md` (dominio de negocio).
 
-**Stack**: Next.js 14 · TypeScript · Supabase (PostgreSQL + pgvector + Auth + RLS) · Tailwind CSS v3 · shadcn/ui (v3/Radix) · Recharts · Meta Graph API v21.0 · Vercel · OpenAI Embeddings · Anthropic Claude API · Telegram Bot API · Vitest · Playwright
+**Stack**: Next.js 14 · TypeScript · Supabase (PostgreSQL + pgvector + Auth + RLS) · Tailwind CSS v3 · shadcn/ui (v3/Radix) · Recharts · Meta Graph API v21.0 · Vercel · OpenAI Embeddings · Anthropic Claude API · Canva Connect API · Telegram Bot API · Vitest · Playwright
 
-**Estado atual**: 12 sprints concluidos. Sistema completo com analytics, Campaign Studio, engagement (DMs/comentarios/mencoes), Knowledge Base, calendario editorial com publicacao, roles de usuario, logging estruturado, E2E tests.
+**Estado atual**: 16 sprints concluidos. Sistema completo com analytics, Campaign Studio, engagement (DMs/comentarios/mencoes), Knowledge Base, calendario editorial com publicacao e entradas recorrentes, roles de usuario, multi-account, templates de campanha, auto-categorizacao de conteudo, webhook Slack/Teams, integracao Canva Connect API, logging estruturado, E2E tests.
 
-**Numeros**: 52 API routes, 29 pages, 21 migrations, 11 unit test files, 5 E2E specs.
+**Numeros**: 63 API routes, 29 pages, 7 hooks, 25 migrations, 11 unit test files, 5 E2E specs.
 
 ---
 
@@ -122,6 +122,8 @@ logger.error('Falha no sync', 'Instagram Sync', error)
 - Usar `useSessionCheck()` de `@/hooks/useSessionCheck` em layouts autenticados.
 - Usar `useNotificationBadges()` de `@/hooks/useNotificationBadges` para badges no sidebar.
 - Usar `useCurrentAccount()` de `@/hooks/useCurrentAccount` para contexto de conta.
+- Usar `usePeriodFilter()` de `@/hooks/usePeriodFilter` para filtro de periodo global.
+- Usar `PeriodSelector` de `@/components/PeriodSelector` para seletor de periodo na UI.
 
 ### 3.8 HTML/XSS
 - Ao inserir dados do usuario em HTML, usar `escapeHtml()` de `lib/auth.ts`.
@@ -132,6 +134,40 @@ logger.error('Falha no sync', 'Instagram Sync', error)
 
 ### 3.10 Log de atividades
 - Registrar acoes relevantes com `logActivity()` de `lib/activity.ts`.
+
+### 3.11 Classificacao de conteudo
+- Usar `classifyContent()` de `@/lib/content-classifier.ts` para categorizar posts e reels.
+- Categorias disponiveis: `destination`, `behind_the_scenes`, `testimonial`, `tips`, `inspiration`, `promotion`, `event`, `other`.
+- A classificacao e baseada em keywords na caption e hashtags.
+- Campo `category` em `instagram_posts` e `instagram_reels` (migration 024).
+
+### 3.12 Webhook (Slack/Teams)
+- Usar `sendWebhookNotification()` de `@/lib/webhook-notifier.ts` para enviar notificacoes.
+- Requer `WEBHOOK_URL` no `.env.local`.
+- Compativel com Slack incoming webhooks (JSON com `text` e `blocks`).
+- Falha silenciosamente se `WEBHOOK_URL` nao estiver configurado.
+- Testar via `POST /api/settings/webhook-test`.
+
+### 3.13 Canva Connect API
+- Client completo em `@/lib/canva-client.ts` (nao e mais stub).
+- **OAuth PKCE**: fluxo via `/api/auth/canva` (redireciona para Canva) e `/api/auth/canva/callback`.
+- **Tokens**: armazenados em tabela `canva_tokens` (migration 025). Refresh automatico.
+- **Verificar conexao**: `GET /api/auth/canva/status` retorna se o usuario tem token valido.
+- **Templates**: `GET /api/canva/templates` lista templates do usuario no Canva.
+- **Autofill**: `POST /api/canva/generate` preenche template com dados da campanha.
+- **Export**: `POST /api/canva/export` exporta design finalizado (PNG/JPG).
+- **UI**: componente `CanvaAssetGenerator` integrado ao Campaign Editor.
+- **Env vars**: `CANVA_CLIENT_ID` e `CANVA_CLIENT_SECRET` obrigatorios.
+
+### 3.14 Templates de campanha
+- Tabela `campaign_templates` (migration 023) com briefing salvo como JSONB.
+- API: `GET/POST/DELETE /api/campaigns/templates`.
+- Permite salvar briefings de campanhas existentes e reutilizar em novas geracoes.
+- Campo `source_campaign_id` vincula o template a campanha de origem.
+
+### 3.15 Entradas recorrentes no calendario
+- Campos `recurrence` (`weekly`, `biweekly`, `monthly`, null) e `recurrence_end` em `instagram_editorial_calendar` (migration 023).
+- Ao criar entrada recorrente, o sistema gera as ocorrencias futuras ate `recurrence_end`.
 
 ---
 
@@ -297,6 +333,27 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 **`/api/instagram/messages`**: conversas e envio de DMs.
 **`/api/instagram/auto-reply`**: CRUD de regras de auto-reply.
 
+### 6.5 Concorrentes (Sprint 14)
+
+**`/api/instagram/competitors/insights`**: relatorio competitivo com insights comparativos.
+**`CompetitorInsights`**: widget de inspiracao e insights de concorrentes.
+
+### 6.6 Templates e Calendario (Sprint 15)
+
+**`/api/campaigns/templates`**: CRUD de templates de campanha reutilizaveis.
+**`lib/content-classifier.ts`**: classificador de conteudo por keywords.
+**`lib/webhook-notifier.ts`**: notificacoes via webhook generico (Slack/Teams).
+
+### 6.7 Canva Connect API (Sprint 16)
+
+**`/api/auth/canva`**: inicia OAuth PKCE com o Canva.
+**`/api/auth/canva/callback`**: recebe callback e armazena tokens.
+**`/api/auth/canva/status`**: verifica se ha token valido.
+**`/api/canva/templates`**: lista templates do usuario no Canva.
+**`/api/canva/generate`**: autofill de template com dados da campanha.
+**`/api/canva/export`**: exporta design finalizado.
+**`lib/canva-client.ts`**: client completo (token management, refresh, templates, autofill, export).
+
 ---
 
 ## 7. Como retomar o desenvolvimento
@@ -347,6 +404,9 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 | Campanha sem system prompt | System prompt com boas praticas e obrigatorio em toda geracao |
 | Streaming sem tratamento de erro | Implementar try/catch e UI de retry na tela de geracao |
 | Agendar posts nao aprovados | `/api/campaigns/[id]/schedule` deve filtrar apenas `status === 'APPROVED'` |
+| Canva token expirado | Usar `refreshCanvaToken()` de `lib/canva-client.ts` — refresh automatico |
+| Webhook falha silenciosa | `sendWebhookNotification()` retorna silenciosamente se `WEBHOOK_URL` nao configurado |
+| `canva-client.ts` como stub | Nao e mais stub — client completo desde Sprint 16 |
 
 ---
 
@@ -377,6 +437,11 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 - [ ] Agendamento filtrando apenas posts `APPROVED`?
 - [ ] `calendar_entry_id` vinculado apos agendamento?
 
+**Canva (adicional):**
+- [ ] Tokens Canva armazenados em `canva_tokens` (nunca em .env)?
+- [ ] Refresh automatico de token antes de chamar API?
+- [ ] `CANVA_CLIENT_ID` e `CANVA_CLIENT_SECRET` configurados?
+
 **Testes (quando aplicavel):**
 - [ ] `npm run test:e2e` sem falhas? (Playwright)
 
@@ -396,4 +461,5 @@ Implementar essa verificacao automaticamente ao aprovar o ultimo post.
 - Anthropic Streaming: https://docs.anthropic.com/en/api/messages-streaming
 - Vitest: https://vitest.dev
 - Playwright: https://playwright.dev
+- Canva Connect API: https://www.canva.dev/docs/connect/
 - text-embedding-3-small: 1536 dims, melhor custo-beneficio para RAG em portugues

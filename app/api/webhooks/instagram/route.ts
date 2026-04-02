@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { apiSuccess, apiError } from '@/lib/api-response'
 
+export const dynamic = "force-dynamic"
+
 const VERIFY_TOKEN = process.env.CRON_SECRET ?? 'dashig-webhook-verify'
 
 /**

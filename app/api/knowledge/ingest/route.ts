@@ -7,6 +7,8 @@ import { generateEmbeddings } from '@/lib/rag/embeddings'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/knowledge/ingest
  * Upload e ingestao de PDFs na Knowledge Base.

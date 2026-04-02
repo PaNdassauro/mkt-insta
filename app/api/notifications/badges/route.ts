@@ -5,6 +5,8 @@ import { checkTokenExpiration } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/notifications/badges
  * Returns badge counts for sidebar navigation items.

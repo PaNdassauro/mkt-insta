@@ -8,6 +8,8 @@ import { extractJSON } from '@/lib/campaign/campaign-parser'
 import { logActivity } from '@/lib/activity'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/campaigns/generate
  * Gera uma campanha completa via Claude API com streaming.

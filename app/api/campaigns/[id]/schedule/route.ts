@@ -4,6 +4,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/campaigns/[id]/schedule
  * Agenda posts aprovados no calendario editorial.

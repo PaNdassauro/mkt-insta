@@ -4,6 +4,8 @@ import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/instagram/comments/sentiment
  * Retorna distribuicao de sentimento agregada por semana (ultimos 3 meses).

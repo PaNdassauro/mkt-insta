@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
 import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const authError = validateDashboardRequest(request)
   if (authError) return authError

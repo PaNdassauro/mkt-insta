@@ -3,6 +3,8 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { META_API_BASE_URL } from '@/lib/constants'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/auth/instagram/callback
  * Recebe o authorization code do Meta OAuth, troca por token de longa duracao,

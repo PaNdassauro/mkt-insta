@@ -3,6 +3,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/auth/canva/status
  * Verifica se a conta atual tem tokens Canva configurados.

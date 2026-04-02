@@ -5,6 +5,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { alertCampaignApproved } from '@/lib/telegram'
 import { logActivity } from '@/lib/activity'
 
+export const dynamic = "force-dynamic"
+
 /**
  * PATCH /api/campaigns/[id]/posts/[postId]
  * Edita um post individual da campanha.

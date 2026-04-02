@@ -3,6 +3,8 @@ import { apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const authError = validateDashboardRequest(request)
   if (authError) return authError

@@ -4,6 +4,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { escapeHtml } from '@/lib/auth'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/campaigns/[id]/brief
  * Gera um brief para designer em HTML (print-friendly / PDF).

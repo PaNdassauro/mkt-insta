@@ -3,6 +3,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { listTemplates } from '@/lib/canva-client'
 import { logger } from '@/lib/logger'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/canva/templates
  * Lista templates disponiveis na conta Canva conectada.

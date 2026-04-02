@@ -4,6 +4,8 @@ import { getAccessToken, getAudienceInsights } from '@/lib/meta-client'
 import { validateCronSecret } from '@/lib/auth'
 import { apiSuccess, apiError, withErrorHandler } from '@/lib/api-response'
 
+export const dynamic = "force-dynamic"
+
 interface SyncAccount {
   id: string
   ig_user_id: string

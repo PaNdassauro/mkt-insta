@@ -5,6 +5,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { buildChatSystemPrompt } from '@/lib/campaign/system-prompt'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/campaigns/[id]/chat
  * Chat estrategico com a IA sobre a campanha.

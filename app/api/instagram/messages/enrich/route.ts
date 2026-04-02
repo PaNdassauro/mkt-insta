@@ -4,6 +4,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { getAccessToken } from '@/lib/meta-client'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/instagram/messages/enrich
  * Busca usernames para conversas sem nome.

@@ -3,6 +3,8 @@ import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/settings/activity
  * Retorna entradas do log de atividades com filtros opcionais.

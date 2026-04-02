@@ -4,6 +4,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { checkTokenExpiration } from '@/lib/meta-client'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const authError = validateDashboardRequest(request)
   if (authError) return authError

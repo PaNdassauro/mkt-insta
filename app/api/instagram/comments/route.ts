@@ -5,6 +5,8 @@ import { getAccessToken } from '@/lib/meta-client'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 const META_API = 'https://graph.facebook.com/v21.0'
 
 /**

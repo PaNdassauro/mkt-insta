@@ -9,6 +9,8 @@ import {
 } from '@/lib/meta-client'
 import { persistStoryMedia, persistStoryVideo } from '@/lib/storage'
 
+export const dynamic = "force-dynamic"
+
 interface SyncAccount {
   id: string
   ig_user_id: string

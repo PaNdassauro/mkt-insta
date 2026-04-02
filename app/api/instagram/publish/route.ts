@@ -10,6 +10,8 @@ import {
 import { logger } from '@/lib/logger'
 import { logActivity } from '@/lib/activity'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/instagram/publish
  * Publica um post do calendario editorial no Instagram.

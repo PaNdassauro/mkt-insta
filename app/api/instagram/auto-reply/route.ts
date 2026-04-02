@@ -2,6 +2,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/instagram/auto-reply
  * Lista regras de auto-reply.

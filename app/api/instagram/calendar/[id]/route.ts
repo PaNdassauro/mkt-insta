@@ -3,6 +3,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/instagram/calendar/[id]
  * Retorna uma entrada do calendario editorial.

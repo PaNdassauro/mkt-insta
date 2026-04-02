@@ -40,20 +40,25 @@ Gestao unificada de interacoes:
 - **Mensagens (DMs)**: inbox com chat view, envio de respostas, auto-reply por keyword
 - **Mencoes**: rastreamento de tags da marca, galeria UGC
 
-### 2.4 Funcionalidades adicionais (Sprints 6-12)
+### 2.4 Funcionalidades adicionais (Sprints 6-16)
 - **Knowledge Base**: documentos indexados (PDFs + site) para RAG
-- **Calendario Editorial**: 3 visoes (mensal, Kanban, editor individual) com publicacao direta
+- **Calendario Editorial**: 3 visoes (mensal, Kanban, tabela com bulk actions) com publicacao direta e entradas recorrentes
 - **Motor de Recomendacoes**: sugestoes acionaveis baseadas em dados historicos
-- **Monitoramento de Concorrentes**: sync automatico semanal via Meta Graph API
+- **Monitoramento de Concorrentes**: sync automatico semanal via Meta Graph API + relatorio competitivo + alertas de crescimento
 - **Hashtag Monitor**: monitoramento de hashtags (top/recent media)
 - **Roles de Usuario**: admin/editor/viewer com controle de acesso
 - **Log de Atividades**: registro de acoes do sistema
 - **Saude do Sistema**: dashboard com status do token, syncs, DB stats, storage
 - **Notification Badges**: badges em tempo real para comentarios, campanhas, mensagens
 - **Designer Brief**: endpoint para gerar brief visual de campanha
-- **Multi-account (preparacao)**: tabela e CRUD de contas Instagram
+- **Multi-account**: suporte completo a multiplas contas Instagram (OAuth, filtro por conta, crons multi-conta)
 - **Alertas Telegram**: notificacoes configuradas via Telegram Bot API
 - **Logging Estruturado**: JSON em producao (Vercel Log Drain), ANSI em dev
+- **Filtro de Periodo**: seletor global de periodo (7d, 30d, 90d, 365d, all) com persistencia
+- **Templates de Campanha**: salvar e reutilizar briefings de campanhas anteriores
+- **Auto-categorizacao**: classificacao automatica de conteudo por keywords
+- **Webhook Slack/Teams**: notificacoes via webhook generico para Slack ou Teams
+- **Canva Connect API**: integracao completa (OAuth PKCE, listagem de templates, autofill, export)
 
 ---
 
@@ -209,7 +214,8 @@ Cada campanha contem:
 | Email | Resend |
 | Embeddings | OpenAI text-embedding-3-small (server-only) |
 | Geracao de campanhas | Anthropic Claude claude-sonnet-4-20250514 (server-only) |
-| Notificacoes | Telegram Bot API |
+| Notificacoes | Telegram Bot API + Webhook (Slack/Teams) |
+| Assets visuais | Canva Connect API (OAuth PKCE) |
 
 ### 6.2 Cron jobs (pg_cron) — 7 jobs
 
@@ -223,13 +229,14 @@ Cada campanha contem:
 | `dashig-auto-publish` | `*/30 * * * *` (30 em 30 min) | POST /api/instagram/auto-publish |
 | `dashig-sync-competitors` | `0 11 * * 1` (seg 8h BRT) | POST /api/instagram/sync-competitors |
 
-### 6.3 Numeros do projeto (marco/2026)
+### 6.3 Numeros do projeto (abril/2026)
 
 | Metrica | Valor |
 |---|---|
-| Migrations | 21 (001 a 021) |
-| API routes (route.ts) | 52 |
+| Migrations | 25 (001 a 025) |
+| API routes (route.ts) | 63 |
 | Pages (page.tsx) | 29 |
+| Hooks | 7 |
 | Unit tests (vitest) | 11 arquivos |
 | E2E tests (Playwright) | 5 specs |
 
@@ -251,22 +258,22 @@ Cada campanha contem:
 12. **API Keys de IA sao server-only** — `OPENAI_API_KEY` e `ANTHROPIC_API_KEY` nunca expostos no client.
 13. **Logging estruturado** — usar `logger` de `lib/logger.ts`, nunca `console.log` direto.
 14. **Respostas de API padronizadas** — usar `apiSuccess`/`apiError` de `lib/api-response.ts`.
+15. **Canva tokens no banco** — tokens OAuth do Canva salvos em `canva_tokens`, nunca em variaveis de ambiente. Refresh automatico via `lib/canva-client.ts`.
+16. **Webhook silencioso** — `sendWebhookNotification()` retorna silenciosamente se `WEBHOOK_URL` nao estiver configurado. Nao quebra o fluxo.
+17. **Classificacao de conteudo** — executada durante o sync, baseada em keywords na caption. Campo `category` em posts e reels.
 
 ---
 
 ## 8. O que NAO esta no escopo
 
 - Analytics de Instagram Ads (Meta Ads API — escopo futuro)
-- Multi-conta completo (preparacao feita: tabela `instagram_accounts` + CRUD + hook `useCurrentAccount`, mas filtro de dados por conta ativa ainda nao implementado)
 - App mobile
 - Integracao com outras redes sociais (TikTok, LinkedIn — escopo futuro)
-- Geracao automatica de imagens/videos (apenas briefs textuais para o designer)
-- Integracao completa com Canva API (stub em `lib/canva-client.ts`, previsto para versao futura)
 - Aprovacao em multiplos niveis hierarquicos (workflow complexo — escopo futuro)
 
 ---
 
-## 9. Sprints concluidos
+## 9. Sprints concluidos (1-16)
 
 ### Sprints 1-5: Analytics + Campaign Studio base
 - Meta App + Long-Lived Token + 9 tabelas iniciais
@@ -312,3 +319,33 @@ Cada campanha contem:
 - Messages enrich endpoint (`/api/instagram/messages/enrich`)
 - E2E tests (Playwright): auth, calendar, campaigns, dashboard, settings
 - Canva client stub (`lib/canva-client.ts`)
+
+### Sprint 13: Multi-account completo
+- Instagram OAuth flow para conectar contas (`/api/auth/instagram`, `/api/auth/instagram/callback`)
+- Migration 022: `account_id` em todas as tabelas de dados
+- Filtro de dados por conta ativa no frontend (header `x-account-id`)
+- `lib/account-context.ts` e `lib/fetch-with-account.ts` para contexto de conta
+- Cron jobs adaptados para iterar sobre todas as contas ativas
+
+### Sprint 14: Relatorio competitivo, alertas de concorrentes, filtro de periodo
+- Relatorio competitivo em PDF (`/api/instagram/competitors/insights`)
+- Alertas de crescimento de concorrentes (integrado ao sync)
+- Widget de inspiracao de conteudo (`CompetitorInsights`)
+- Filtro de periodo global (`PeriodSelector` + hook `usePeriodFilter`)
+- Melhorias nos cron jobs multi-conta
+
+### Sprint 15: Templates de campanha, calendario recorrente, classificacao de conteudo, webhook
+- Templates de campanha: salvar e reutilizar briefings (`campaign_templates` + `/api/campaigns/templates`)
+- Entradas recorrentes no calendario (`recurrence`, `recurrence_end` em `instagram_editorial_calendar`)
+- Auto-categorizacao de conteudo por keywords (`lib/content-classifier.ts`, migration 024)
+- Webhook generico para Slack/Teams (`lib/webhook-notifier.ts` + `/api/settings/webhook-test`)
+- Acoes em lote no calendario (`CalendarTable` com bulk actions)
+
+### Sprint 16: Canva Connect API
+- OAuth com PKCE para Canva (`/api/auth/canva`, `/api/auth/canva/callback`, `/api/auth/canva/status`)
+- Listagem de templates Canva (`/api/canva/templates`)
+- Autofill de templates com dados da campanha (`/api/canva/generate`)
+- Exportacao de designs finalizados (`/api/canva/export`)
+- Componente `CanvaAssetGenerator` integrado ao Campaign Editor
+- Migration 025: tabela `canva_tokens` para gestao de tokens OAuth
+- `lib/canva-client.ts` com client completo (token management, templates, autofill, export)

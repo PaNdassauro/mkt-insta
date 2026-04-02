@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
 import { createServerSupabaseClient, createServerComponentClient } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
+export const dynamic = "force-dynamic"
+
 const LOG_CTX = 'Users API'
 
 /**

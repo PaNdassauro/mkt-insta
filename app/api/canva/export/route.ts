@@ -3,6 +3,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { exportDesign } from '@/lib/canva-client'
 import { logger } from '@/lib/logger'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/canva/export
  * Exporta um design do Canva como PNG.

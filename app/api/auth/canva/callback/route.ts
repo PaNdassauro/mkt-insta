@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/auth/canva/callback
  * Recebe o authorization code do Canva OAuth, troca por tokens,

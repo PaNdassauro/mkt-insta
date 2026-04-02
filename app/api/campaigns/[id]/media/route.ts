@@ -3,6 +3,8 @@ import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/campaigns/[id]/media
  * Vincula posts/reels existentes a uma campanha.

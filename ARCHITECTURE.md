@@ -32,7 +32,8 @@ DashIG e um dashboard interno de analytics e gestao de conteudo para o Instagram
 | Email Reports | Resend |
 | Embeddings | OpenAI text-embedding-3-small (RAG) |
 | Geracao IA | Anthropic Claude claude-sonnet-4-20250514 (Campaign Studio) |
-| Notificacoes | Telegram Bot API |
+| Notificacoes | Telegram Bot API + Webhook (Slack/Teams) |
+| Assets visuais | Canva Connect API (OAuth PKCE) |
 | Toasts | Sonner |
 | Tema escuro | next-themes |
 | Testes unitarios | Vitest |
@@ -114,7 +115,7 @@ Supabase pgvector (document_chunks)
       /settings/users/page.tsx         <- Gestao de usuarios e roles (admin only)
       /settings/activity/page.tsx      <- Log de atividades do sistema
       /settings/system/page.tsx        <- Dashboard de saude do sistema
-      /settings/accounts/page.tsx      <- Gestao de contas Instagram (multi-account prep)
+      /settings/accounts/page.tsx      <- Gestao de contas Instagram (multi-account)
       /campaigns/page.tsx              <- Lista de campanhas com status
       /campaigns/new/page.tsx          <- Briefing form (step 1)
       /campaigns/new/generating/page.tsx <- Streaming de geracao (step 2)
@@ -124,7 +125,7 @@ Supabase pgvector (document_chunks)
       /knowledge/page.tsx              <- Gestao da Knowledge Base (upload de PDFs, status)
 ```
 
-### 4.2 API Routes (52 route.ts files)
+### 4.2 API Routes (63 route.ts files)
 ```
 /app/api/instagram
   /sync/route.ts                        <- Cron principal (posts, reels, insights, content scores)
@@ -157,6 +158,7 @@ Supabase pgvector (document_chunks)
   /hashtag-monitor/route.ts           <- GET/POST monitoramento de hashtags
   /recommendations/route.ts           <- GET recomendacoes acionaveis (timing, formato, gaps, temas)
   /reply-templates/route.ts           <- CRUD templates de resposta
+  /competitors/insights/route.ts     <- GET relatorio competitivo (insights comparativos)
 
 /app/api/webhooks
   /instagram/route.ts                   <- GET verify + POST recebe eventos (messages, comments)
@@ -173,6 +175,19 @@ Supabase pgvector (document_chunks)
   /[id]/report/route.ts                <- GET relatorio da campanha (parcial ou final)
   /[id]/media/route.ts                 <- POST/DELETE vincular midias reais a campanha
   /[id]/brief/route.ts                 <- GET designer brief formatado da campanha
+  /templates/route.ts                  <- GET/POST/DELETE templates de campanha reutilizaveis
+
+/app/api/canva
+  /templates/route.ts                  <- GET lista templates Canva do usuario
+  /generate/route.ts                   <- POST autofill de template Canva com dados da campanha
+  /export/route.ts                     <- POST exporta design finalizado do Canva
+
+/app/api/auth
+  /instagram/route.ts                  <- GET inicia OAuth do Instagram
+  /instagram/callback/route.ts         <- GET callback do OAuth Instagram
+  /canva/route.ts                      <- GET inicia OAuth do Canva (PKCE)
+  /canva/callback/route.ts             <- GET callback do OAuth Canva
+  /canva/status/route.ts               <- GET verifica status da conexao Canva
 
 /app/api/knowledge
   /ingest/route.ts                      <- Upload e ingestao de PDFs
@@ -187,8 +202,9 @@ Supabase pgvector (document_chunks)
   /telegram-test/route.ts              <- POST teste de conexao do Telegram
   /users/route.ts                       <- GET/POST/PATCH/DELETE gestao de usuarios (admin only)
   /activity/route.ts                    <- GET log de atividades com filtros
-  /accounts/route.ts                    <- CRUD contas Instagram (multi-account prep)
+  /accounts/route.ts                    <- CRUD contas Instagram (multi-account)
   /system/route.ts                      <- GET saude do sistema (token, syncs, db stats, storage)
+  /webhook-test/route.ts               <- POST teste de webhook (Slack/Teams)
 
 /app/api/admin
   /export-all/route.ts                  <- GET exportacao completa de dados (CSV)
@@ -212,7 +228,11 @@ Supabase pgvector (document_chunks)
   report-generator.ts                   <- Geracao de relatorio HTML mensal
   constants.ts                          <- Constantes (API URL, pesos, cores, formatadores)
   utils.ts                              <- cn() para classes Tailwind
-  canva-client.ts                       <- Stub para futura integracao Canva Connect API
+  canva-client.ts                       <- Client Canva Connect API (OAuth, templates, autofill, export)
+  content-classifier.ts                <- Classificador de conteudo por keywords (categories)
+  webhook-notifier.ts                  <- Notificador generico via webhook (Slack/Teams)
+  account-context.ts                   <- Contexto de conta ativa (server-side)
+  fetch-with-account.ts                <- Fetch com header x-account-id automatico
   rag/
     embeddings.ts                       <- Wrapper OpenAI Embeddings API
     chunker.ts                          <- Chunking de texto (512 tokens, overlap 64)
@@ -244,9 +264,10 @@ Supabase pgvector (document_chunks)
     CompetitorTable.tsx
     CompetitorEvolutionChart.tsx
     CompetitorEvolutionWrapper.tsx
+    CompetitorInsights.tsx               <- Widget de insights comparativos de concorrentes
     EditorialCalendar.tsx               <- Calendario mensal com publicacao direta
     CalendarKanban.tsx                  <- Visao Kanban do calendario (drag-and-drop)
-    CalendarTable.tsx                   <- Visao tabela do calendario
+    CalendarTable.tsx                   <- Visao tabela do calendario (com bulk actions)
     ExportButton.tsx
     StoryMetrics.tsx
     SentimentChart.tsx                  <- Grafico de sentimento dos comentarios
@@ -258,15 +279,18 @@ Supabase pgvector (document_chunks)
       CampaignTimeline.tsx              <- Linha do tempo visual da campanha
       ScheduleButton.tsx                <- Envia posts aprovados para o calendario editorial
       StrategyChatPanel.tsx             <- Chat com IA para discutir estrategia
+      CanvaAssetGenerator.tsx           <- Geracao de assets via Canva Connect API
     /knowledge
       KnowledgeBaseManager.tsx          <- Upload, lista e toggle de documentos indexados
+
+  PeriodSelector.tsx                     <- Seletor global de periodo (7d, 30d, 90d, 365d, all)
 
   /ui                                   <- shadcn/ui v3 (Radix primitives)
     badge.tsx, button.tsx, card.tsx, dialog.tsx, select.tsx, separator.tsx,
     skeleton.tsx, sonner.tsx, table.tsx, tabs.tsx, textarea.tsx
 ```
 
-### 4.5 Hooks
+### 4.5 Hooks (7 arquivos)
 ```
 /hooks
   useInstagramMetrics.ts               <- Busca metricas gerais do Instagram
@@ -274,7 +298,8 @@ Supabase pgvector (document_chunks)
   useReelPerformance.ts                <- Busca performance de reels
   useNotificationBadges.ts             <- Polling de badges de notificacao (60s)
   useSessionCheck.ts                   <- Verifica sessao ativa (60s), redireciona para login se expirada
-  useCurrentAccount.ts                 <- Selecao de conta ativa (multi-account prep, localStorage)
+  useCurrentAccount.ts                 <- Selecao de conta ativa (multi-account, localStorage)
+  usePeriodFilter.ts                   <- Filtro de periodo global (7d/30d/90d/365d/all) com persistencia
 ```
 
 ### 4.6 Testes
@@ -328,7 +353,7 @@ Supabase pgvector (document_chunks)
 | `hashtag_snapshots` | Snapshots de hashtags (top/recent media) | `(hashtag_id, date)` |
 | `user_roles` | Papeis de usuario (admin/editor/viewer) | `user_id` |
 | `activity_log` | Log de atividades do sistema | `id` |
-| `instagram_accounts` | Contas Instagram cadastradas (multi-account prep) | `ig_user_id` |
+| `instagram_accounts` | Contas Instagram cadastradas (multi-account) | `ig_user_id` |
 | `knowledge_documents` | Documentos indexados na Knowledge Base | `id` |
 | `document_chunks` | Chunks de texto com embeddings vetoriais | `id` |
 | `instagram_campaigns` | Campanhas geradas pelo Campaign Studio | `id` |
@@ -338,9 +363,11 @@ Supabase pgvector (document_chunks)
 | `auto_reply_rules` | Regras de auto-reply por keyword | `id` |
 | `reply_templates` | Templates de resposta | `id` |
 | `webhook_events` | Eventos recebidos via webhook | `id` |
+| `campaign_templates` | Templates de campanha reutilizaveis | `id` |
+| `canva_tokens` | Tokens OAuth da Canva Connect API | `account_id` |
 | `app_config` | Configuracao (tokens, etc.) | `key` |
 
-### 5.2 Migrations (21 arquivos)
+### 5.2 Migrations (25 arquivos)
 
 | Arquivo | Descricao |
 |---------|-----------|
@@ -365,6 +392,10 @@ Supabase pgvector (document_chunks)
 | `019_competitor_ig_user_id.sql` | ig_user_id em competitors + media_count em snapshots |
 | `020_multi_account.sql` | Tabela instagram_accounts (preparacao multi-conta) |
 | `021_seed_admin_user.sql` | Seed do usuario admin inicial |
+| `022_multi_account_data.sql` | account_id em todas as tabelas de dados (filtro por conta) |
+| `023_campaign_templates.sql` | Tabela campaign_templates + campos recurrence no calendario |
+| `024_content_categories.sql` | Campo category em posts e reels (auto-categorizacao) |
+| `025_canva_tokens.sql` | Tabela canva_tokens para OAuth Canva Connect API |
 
 ---
 
@@ -688,6 +719,13 @@ ANTHROPIC_API_KEY=           # Geracao de campanhas (Claude)
 TELEGRAM_BOT_TOKEN=          # Token do bot criado via @BotFather
 TELEGRAM_CHAT_ID=            # ID do chat/grupo para receber alertas
 
+# Canva Connect API
+CANVA_CLIENT_ID=               # Client ID do app Canva
+CANVA_CLIENT_SECRET=           # Client Secret do app Canva
+
+# Webhook (Slack/Teams)
+WEBHOOK_URL=                   # URL do incoming webhook (Slack, Teams, etc.)
+
 # Site para scraping
 WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 ```
@@ -742,9 +780,37 @@ WELCOME_WEDDINGS_SITE_URL=https://www.welcomeweddings.com.br
 - [x] Canva client stub
 - [x] `lib/api-response.ts` (apiSuccess, apiError, getErrorMessage, withErrorHandler)
 
+### Sprint 13: Multi-account completo (CONCLUIDO)
+- [x] Instagram OAuth flow (`/api/auth/instagram`, `/api/auth/instagram/callback`)
+- [x] Migration 022: `account_id` em todas as tabelas de dados
+- [x] Filtro de dados por conta ativa (header `x-account-id`)
+- [x] `lib/account-context.ts` e `lib/fetch-with-account.ts`
+- [x] Cron jobs adaptados para multiplas contas
+
+### Sprint 14: Relatorio competitivo, alertas, filtro de periodo (CONCLUIDO)
+- [x] Relatorio competitivo (`/api/instagram/competitors/insights`)
+- [x] Alertas de crescimento de concorrentes
+- [x] Widget `CompetitorInsights`
+- [x] Filtro de periodo global (`PeriodSelector` + `usePeriodFilter`)
+- [x] Melhorias nos cron jobs multi-conta
+
+### Sprint 15: Templates, calendario recorrente, classificacao, webhook (CONCLUIDO)
+- [x] Templates de campanha (`campaign_templates` + `/api/campaigns/templates`)
+- [x] Entradas recorrentes no calendario (`recurrence`, `recurrence_end`)
+- [x] Auto-categorizacao de conteudo (`lib/content-classifier.ts`, migration 024)
+- [x] Webhook generico Slack/Teams (`lib/webhook-notifier.ts` + `/api/settings/webhook-test`)
+- [x] Bulk actions no `CalendarTable`
+
+### Sprint 16: Canva Connect API (CONCLUIDO)
+- [x] OAuth com PKCE (`/api/auth/canva`, callback, status)
+- [x] Listagem de templates Canva (`/api/canva/templates`)
+- [x] Autofill de templates (`/api/canva/generate`)
+- [x] Exportacao de designs (`/api/canva/export`)
+- [x] Componente `CanvaAssetGenerator`
+- [x] Migration 025: tabela `canva_tokens`
+- [x] `lib/canva-client.ts` completo
+
 ### Backlog futuro
-- [ ] Integracao completa com Canva API para geracao de assets
-- [ ] Multi-conta completo (filtro de dados por conta ativa no frontend)
 - [ ] Integracao com TikTok e LinkedIn
 - [ ] Analytics de Instagram Ads (Meta Ads API)
 - [ ] Accessibility pass completo (aria labels, keyboard nav)

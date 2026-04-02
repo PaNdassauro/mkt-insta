@@ -5,6 +5,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { createDesignFromTemplate } from '@/lib/canva-client'
 import { logger } from '@/lib/logger'
 
+export const dynamic = "force-dynamic"
+
 /**
  * POST /api/canva/generate
  * Gera um design no Canva a partir de um template usando autofill com dados do post.

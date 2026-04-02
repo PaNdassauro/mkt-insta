@@ -3,6 +3,8 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = "force-dynamic"
+
 const LOG_CTX = 'Accounts API'
 
 /**

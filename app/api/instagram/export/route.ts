@@ -5,6 +5,8 @@ import { apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 function toCsv(headers: string[], rows: string[][]): string {
   const escape = (val: string) => {
     if (val.includes(',') || val.includes('"') || val.includes('\n')) {

@@ -6,6 +6,8 @@ import { META_API_BASE_URL } from '@/lib/constants'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 interface CompetitorMedia {
   id: string
   caption?: string

@@ -5,6 +5,8 @@ import { extractHashtags } from '@/lib/analytics'
 import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/instagram/hashtags/suggest?caption=...
  * Sugere hashtags com base na caption e performance historica.

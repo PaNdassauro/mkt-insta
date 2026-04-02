@@ -3,6 +3,8 @@ import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
 import { sendTelegramMessage } from '@/lib/telegram'
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const authError = validateDashboardRequest(request)
   if (authError) return authError

@@ -1,8 +1,14 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 export const GET = withErrorHandler(async (request: Request) => {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   const accountId = await resolveAccountId(request)
   const { searchParams } = new URL(request.url)
   const days = Math.min(Number(searchParams.get('days')) || 30, 365)

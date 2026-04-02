@@ -1,9 +1,15 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { ITEMS_PER_PAGE } from '@/lib/constants'
 import { apiSuccess, withErrorHandler } from '@/lib/api-response'
+import { validateDashboardRequest } from '@/lib/auth'
 import { resolveAccountId } from '@/lib/account-context'
 
+export const dynamic = "force-dynamic"
+
 export const GET = withErrorHandler(async (request: Request) => {
+  const authError = validateDashboardRequest(request)
+  if (authError) return authError
+
   const accountId = await resolveAccountId(request)
   const { searchParams } = new URL(request.url)
   const limit = Math.min(Number(searchParams.get('limit')) || ITEMS_PER_PAGE, 100)

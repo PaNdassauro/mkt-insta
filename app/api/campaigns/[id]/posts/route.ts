@@ -3,6 +3,8 @@ import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { validateDashboardRequest } from '@/lib/auth'
 
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/campaigns/[id]/posts
  * Lista todos os posts de uma campanha.
