@@ -132,7 +132,7 @@ export default function SystemHealthPage() {
   async function handleSync() {
     setSyncing(true)
     try {
-      const res = await fetchWithAccount('/api/instagram/sync', { method: 'POST' })
+      const res = await fetchWithAccount('/api/instagram/manual-sync', { method: 'POST' })
       if (res.ok) {
         toast.success('Sync iniciado com sucesso')
         // Refresh data after a short delay
@@ -151,7 +151,11 @@ export default function SystemHealthPage() {
   async function handleRefreshToken() {
     setRefreshingToken(true)
     try {
-      const res = await fetchWithAccount('/api/instagram/refresh-token', { method: 'POST' })
+      const res = await fetchWithAccount('/api/instagram/manual-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refresh-token' }),
+      })
       const body = await res.json()
       if (res.ok) {
         toast.success('Token renovado com sucesso')
