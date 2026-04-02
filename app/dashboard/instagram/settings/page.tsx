@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 interface SettingsData {
   token: { status: string; daysLeft: number }
   telegram: { configured: boolean }
+  webhook: { configured: boolean }
   instagram: { userId: string | null }
 }
 
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [testingTelegram, setTestingTelegram] = useState(false)
+  const [testingWebhook, setTestingWebhook] = useState(false)
 
   useEffect(() => {
     async function fetchSettings() {
@@ -79,6 +81,23 @@ export default function SettingsPage() {
       toast.error('Erro ao enviar mensagem de teste')
     } finally {
       setTestingTelegram(false)
+    }
+  }
+
+  async function handleTestWebhook() {
+    setTestingWebhook(true)
+    try {
+      const res = await fetchWithAccount('/api/settings/webhook-test', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('Webhook de teste enviado')
+      } else {
+        toast.error(data.error ?? 'Erro ao enviar webhook de teste')
+      }
+    } catch {
+      toast.error('Erro ao enviar webhook de teste')
+    } finally {
+      setTestingWebhook(false)
     }
   }
 
@@ -194,7 +213,43 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Cron Jobs */}
+      {/* Section 3: Webhook (Slack/Teams) */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Webhook (Slack / Teams)</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Status da Conexao</span>
+              {settings?.webhook.configured ? (
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                  <Badge className="bg-green-50 text-green-600 border-0">Configurado</Badge>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                  <Badge className="bg-red-50 text-red-600 border-0">Nao configurado</Badge>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Configure a variavel WEBHOOK_URL para receber alertas via Slack, Teams ou outro servico compativel.
+            </p>
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleTestWebhook}
+                disabled={testingWebhook || !settings?.webhook.configured}
+              >
+                {testingWebhook ? 'Enviando...' : 'Testar Webhook'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 4: Cron Jobs */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4">Cron Jobs</h2>
@@ -228,7 +283,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 4: Sobre */}
+      {/* Section 5: Sobre */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4">Sobre</h2>

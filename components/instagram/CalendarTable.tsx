@@ -31,6 +31,7 @@ export default function CalendarTable() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | CalendarStatus>('all')
   const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -47,6 +48,49 @@ export default function CalendarTable() {
   }, [currentMonth])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
+
+  // Clear selection on filter or month change
+  useEffect(() => { setSelectedIds(new Set()) }, [filter, currentMonth])
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map((e) => e.id)))
+    }
+  }
+
+  async function bulkApprove() {
+    for (const id of Array.from(selectedIds)) {
+      await fetchWithAccount('/api/instagram/calendar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'APPROVED' }),
+      })
+    }
+    toast.success(`${selectedIds.size} entradas aprovadas`)
+    setSelectedIds(new Set())
+    await fetchEntries()
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`Excluir ${selectedIds.size} entradas? Esta acao nao pode ser desfeita.`)) return
+    for (const id of Array.from(selectedIds)) {
+      await fetchWithAccount(`/api/instagram/calendar?id=${id}`, { method: 'DELETE' })
+    }
+    toast.success(`${selectedIds.size} entradas excluidas`)
+    setSelectedIds(new Set())
+    await fetchEntries()
+  }
 
   async function deleteEntry(id: string) {
     if (!confirm('Excluir esta entrada?')) return
@@ -144,10 +188,33 @@ export default function CalendarTable() {
         </Card>
       ) : (
         <Card className="border-0 shadow-sm overflow-hidden">
+          {selectedIds.size > 0 && (
+            <div className="sticky top-0 z-10 bg-primary/10 px-4 py-2 flex items-center gap-3 border-b">
+              <span className="text-sm font-medium">{selectedIds.size} selecionados</span>
+              <Button size="sm" className="h-7 text-xs" onClick={bulkApprove}>
+                Aprovar todos
+              </Button>
+              <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={bulkDelete}>
+                Excluir todos
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
+                Cancelar selecao
+              </Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
+                  <th className="w-10 px-2 py-3">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onChange={toggleSelectAll}
+                      aria-label="Selecionar todos"
+                      className="rounded border-muted-foreground"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Data</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Formato</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Conteudo</th>
@@ -163,7 +230,16 @@ export default function CalendarTable() {
                   const icon = FORMAT_ICON[entry.content_type ?? 'IMAGE'] ?? '📄'
 
                   return (
-                    <tr key={entry.id} className="hover:bg-muted/20 transition-colors">
+                    <tr key={entry.id} className={`hover:bg-muted/20 transition-colors ${selectedIds.has(entry.id) ? 'bg-primary/5' : ''}`}>
+                      <td className="w-10 px-2 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(entry.id)}
+                          onChange={() => toggleSelect(entry.id)}
+                          aria-label={`Selecionar entrada de ${entry.topic ?? 'sem titulo'}`}
+                          className="rounded border-muted-foreground"
+                        />
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm font-medium">
                           {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}

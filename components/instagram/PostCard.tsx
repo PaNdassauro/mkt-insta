@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatNumber, formatPercent } from '@/lib/analytics'
 import { CONTENT_SCORE_COLORS, CONTENT_SCORE_LABELS } from '@/lib/constants'
+import { CATEGORY_LABELS, type ContentCategory } from '@/lib/content-classifier'
 import type { InstagramPost } from '@/types/instagram'
 
 interface PostCardProps {
@@ -54,9 +55,16 @@ export default function PostCard({ post }: PostCardProps) {
           )}
           {/* Overlay com badges */}
           <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2.5">
-            <Badge variant="secondary" className="bg-black/60 text-white border-0 text-[10px] backdrop-blur-sm">
-              {MEDIA_TYPE_LABELS[post.media_type] ?? post.media_type}
-            </Badge>
+            <div className="flex items-center gap-1">
+              <Badge variant="secondary" className="bg-black/60 text-white border-0 text-[10px] backdrop-blur-sm">
+                {MEDIA_TYPE_LABELS[post.media_type] ?? post.media_type}
+              </Badge>
+              {post.category && post.category !== 'other' && (
+                <Badge variant="secondary" className="bg-purple-600/80 text-white border-0 text-[10px] backdrop-blur-sm">
+                  {CATEGORY_LABELS[post.category as ContentCategory] ?? post.category}
+                </Badge>
+              )}
+            </div>
             {scoreColors && scoreLabel && (
               <Badge className={`${scoreColors.bg} ${scoreColors.text} border-0 text-[10px] font-semibold backdrop-blur-sm`}>
                 {scoreLabel}

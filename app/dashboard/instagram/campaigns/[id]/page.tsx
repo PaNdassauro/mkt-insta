@@ -34,6 +34,7 @@ export default function CampaignEditorPage() {
   const [posts, setPosts] = useState<CampaignPost[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -58,6 +59,27 @@ export default function CampaignEditorPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  async function handleSaveAsTemplate() {
+    setSavingTemplate(true)
+    try {
+      const res = await fetchWithAccount('/api/campaigns/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_id: campaignId }),
+      })
+      if (res.ok) {
+        alert('Template salvo com sucesso!')
+      } else {
+        const data = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
+        alert(`Erro ao salvar template: ${data.error}`)
+      }
+    } catch {
+      alert('Erro de conexao ao salvar template')
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
 
   async function handleDeleteCampaign() {
     if (!confirm('Tem certeza que deseja deletar esta campanha? Esta acao nao pode ser desfeita.')) {
@@ -157,6 +179,17 @@ export default function CampaignEditorPage() {
             <div className="flex items-center gap-2 text-sm text-indigo-600">
               <span>Campanha agendada no calendario editorial</span>
             </div>
+          )}
+
+          {(campaign.status === 'APPROVED' || campaign.status === 'SCHEDULED') && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={savingTemplate}
+              onClick={handleSaveAsTemplate}
+            >
+              {savingTemplate ? 'Salvando...' : 'Salvar como Template'}
+            </Button>
           )}
 
           {approvedCount > 0 && (

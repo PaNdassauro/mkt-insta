@@ -21,6 +21,9 @@ export async function GET(request: Request) {
       process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID
     )
 
+    // Webhook config status
+    const webhookConfigured = Boolean(process.env.WEBHOOK_URL)
+
     // Instagram User ID
     const igUserId = process.env.META_IG_USER_ID ?? null
 
@@ -33,6 +36,9 @@ export async function GET(request: Request) {
         : { status: 'unknown', daysLeft: 0 },
       telegram: {
         configured: telegramConfigured,
+      },
+      webhook: {
+        configured: webhookConfigured,
       },
       instagram: {
         userId: igUserId,

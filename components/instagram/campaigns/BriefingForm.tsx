@@ -2,12 +2,33 @@
 
 import { fetchWithAccount } from '@/lib/fetch-with-account'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { PostFormat } from '@/types/instagram'
+
+interface CampaignTemplate {
+  id: string
+  title: string
+  description: string | null
+  briefing: {
+    objective?: string
+    theme?: string
+    audience?: string
+    duration_days?: number
+    formats?: PostFormat[]
+    tone?: string
+  }
+}
 
 const FORMAT_OPTIONS: { value: PostFormat; label: string }[] = [
   { value: 'REEL', label: 'Reel' },
@@ -27,6 +48,9 @@ export default function BriefingForm() {
   const [generatedText, setGeneratedText] = useState('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const [templates, setTemplates] = useState<CampaignTemplate[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(true)
+
   const [title, setTitle] = useState('')
   const [objective, setObjective] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
@@ -35,6 +59,37 @@ export default function BriefingForm() {
   const [durationDays, setDurationDays] = useState(7)
   const [startDate, setStartDate] = useState(getDefaultStartDate())
   const [formats, setFormats] = useState<PostFormat[]>(['REEL', 'CAROUSEL', 'IMAGE'])
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetchWithAccount('/api/campaigns/templates')
+      if (res.ok) {
+        const json = await res.json()
+        setTemplates(json.data ?? [])
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setLoadingTemplates(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [fetchTemplates])
+
+  function applyTemplate(templateId: string) {
+    if (templateId === 'scratch') return
+    const tpl = templates.find((t) => t.id === templateId)
+    if (!tpl) return
+    const b = tpl.briefing
+    if (b.objective) setObjective(b.objective)
+    if (b.theme) setTheme(b.theme)
+    if (b.audience) setTargetAudience(b.audience)
+    if (b.duration_days) setDurationDays(b.duration_days)
+    if (b.formats && b.formats.length > 0) setFormats(b.formats)
+    if (b.tone) setToneNotes(b.tone)
+  }
 
   function toggleFormat(format: PostFormat) {
     setFormats((prev) =>
@@ -265,6 +320,29 @@ export default function BriefingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Selecao de template */}
+      {!loadingTemplates && templates.length > 0 && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <label className="text-sm font-medium mb-2 block">Criar a partir de template</label>
+            <Select onValueChange={applyTemplate} defaultValue="scratch">
+              <SelectTrigger className="h-9 text-sm border-border/50">
+                <SelectValue placeholder="Selecione um template..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scratch">Criar do zero</SelectItem>
+                {templates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>
+                    {tpl.title}
+                    {tpl.description ? ` — ${tpl.description}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg">Briefing da Campanha</CardTitle>

@@ -45,6 +45,7 @@ export interface InstagramPost {
   engagement_rate: number | null
   content_score: ContentScore | null
   hashtags: string[] | null
+  category: string | null
   campaign_id: string | null
   synced_at: string
 }
@@ -67,6 +68,7 @@ export interface InstagramReel {
   duration_sec: number | null
   content_score: ContentScore | null
   hashtags: string[] | null
+  category: string | null
   campaign_id: string | null
   synced_at: string
 }
@@ -144,6 +146,8 @@ export interface EditorialEntry {
   collaborators: string[] | null
   cover_url: string | null
   auto_publish: boolean
+  recurrence: 'weekly' | 'biweekly' | 'monthly' | null
+  recurrence_end: string | null
   created_by?: string | null
   updated_by?: string | null
   created_at: string

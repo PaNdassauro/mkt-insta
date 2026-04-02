@@ -49,6 +49,8 @@ export default function EditorialCalendar() {
     content_type: 'REEL' as ContentType,
     topic: '',
     caption_draft: '',
+    recurrence: '' as '' | 'weekly' | 'biweekly' | 'monthly',
+    recurrence_end: '',
   })
 
   const fetchEntries = useCallback(async () => {
@@ -78,12 +80,22 @@ export default function EditorialCalendar() {
       return
     }
     try {
+      const payload: Record<string, unknown> = {
+        scheduled_for: form.scheduled_for,
+        content_type: form.content_type,
+        topic: form.topic,
+        caption_draft: form.caption_draft,
+      }
+      if (form.recurrence) {
+        payload.recurrence = form.recurrence
+        if (form.recurrence_end) payload.recurrence_end = form.recurrence_end
+      }
       await fetchWithAccount('/api/instagram/calendar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
-      setForm({ scheduled_for: '', content_type: 'REEL', topic: '', caption_draft: '' })
+      setForm({ scheduled_for: '', content_type: 'REEL', topic: '', caption_draft: '', recurrence: '', recurrence_end: '' })
       setShowForm(false)
       await fetchEntries()
     } catch { toast.error('Erro na operacao') }
@@ -214,7 +226,7 @@ export default function EditorialCalendar() {
       {showForm && (
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Data/Hora</label>
                 <input
@@ -245,6 +257,29 @@ export default function EditorialCalendar() {
                   className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Recorrencia</label>
+                <Select value={form.recurrence || 'none'} onValueChange={(v) => setForm({ ...form, recurrence: v === 'none' ? '' : v as 'weekly' | 'biweekly' | 'monthly', recurrence_end: v === 'none' ? '' : form.recurrence_end })}>
+                  <SelectTrigger className="h-9 text-sm border-border/50"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unica vez</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="biweekly">Quinzenal</SelectItem>
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.recurrence && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Fim da recorrencia</label>
+                  <input
+                    type="date"
+                    value={form.recurrence_end}
+                    onChange={(e) => setForm({ ...form, recurrence_end: e.target.value })}
+                    className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              )}
               <div className="flex items-end">
                 <Button onClick={addEntry} size="sm" className="h-9 w-full" disabled={!form.scheduled_for}>
                   Adicionar

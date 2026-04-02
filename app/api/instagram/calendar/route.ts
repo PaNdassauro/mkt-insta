@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { scheduled_for, content_type, topic, caption_draft, hashtags_plan, status } = body
+    const { scheduled_for, content_type, topic, caption_draft, hashtags_plan, status, recurrence, recurrence_end } = body
 
     if (!scheduled_for || !content_type) {
       return apiError('scheduled_for and content_type are required', 400)
@@ -57,24 +57,83 @@ export async function POST(request: Request) {
       return apiError(`content_type invalido. Deve ser: ${validContentTypes.join(', ')}`, 400)
     }
 
+    const validRecurrences = ['weekly', 'biweekly', 'monthly']
+    if (recurrence && !validRecurrences.includes(recurrence)) {
+      return apiError(`recurrence invalido. Deve ser: ${validRecurrences.join(', ')}`, 400)
+    }
+
     const accountId = await resolveAccountId(request)
     const supabase = createServerSupabaseClient()
-    const { data, error } = await supabase
+
+    const baseEntry = {
+      scheduled_for,
+      content_type,
+      topic: topic || null,
+      caption_draft: caption_draft || null,
+      hashtags_plan: hashtags_plan || null,
+      status: status || 'DRAFT',
+      account_id: accountId,
+      recurrence: recurrence || null,
+      recurrence_end: recurrence_end || null,
+    }
+
+    // Criar primeira entrada
+    const { data: firstEntry, error: firstError } = await supabase
       .from('instagram_editorial_calendar')
-      .insert({
-        scheduled_for,
-        content_type,
-        topic: topic || null,
-        caption_draft: caption_draft || null,
-        hashtags_plan: hashtags_plan || null,
-        status: status || 'DRAFT',
-        account_id: accountId,
-      })
+      .insert(baseEntry)
       .select()
       .single()
 
-    if (error) throw error
-    return apiSuccess({ data })
+    if (firstError) throw firstError
+
+    const allEntries = [firstEntry]
+
+    // Se tem recorrencia, gerar entradas subsequentes
+    if (recurrence) {
+      const endDate = recurrence_end
+        ? new Date(recurrence_end)
+        : new Date(parsedDate.getTime() + 90 * 24 * 60 * 60 * 1000) // 3 meses
+
+      const recurringEntries: Array<Record<string, unknown>> = []
+      let nextDate = new Date(parsedDate)
+
+      while (true) {
+        if (recurrence === 'weekly') {
+          nextDate = new Date(nextDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        } else if (recurrence === 'biweekly') {
+          nextDate = new Date(nextDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+        } else if (recurrence === 'monthly') {
+          nextDate = new Date(nextDate)
+          nextDate.setMonth(nextDate.getMonth() + 1)
+        }
+
+        if (nextDate > endDate) break
+
+        recurringEntries.push({
+          scheduled_for: nextDate.toISOString(),
+          content_type,
+          topic: topic || null,
+          caption_draft: caption_draft || null,
+          hashtags_plan: hashtags_plan || null,
+          status: 'DRAFT',
+          account_id: accountId,
+          recurrence: recurrence,
+          recurrence_end: recurrence_end || null,
+        })
+      }
+
+      if (recurringEntries.length > 0) {
+        const { data: extraEntries, error: extraError } = await supabase
+          .from('instagram_editorial_calendar')
+          .insert(recurringEntries)
+          .select()
+
+        if (extraError) throw extraError
+        if (extraEntries) allEntries.push(...extraEntries)
+      }
+    }
+
+    return apiSuccess({ data: allEntries })
   } catch (err) {
     logger.error('POST error', 'DashIG Calendar', { error: err as Error })
     return apiError(getErrorMessage(err))

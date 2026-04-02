@@ -18,6 +18,7 @@ import {
   extractHashtags,
   calcCompletionRate,
 } from '@/lib/analytics'
+import { classifyContent } from '@/lib/content-classifier'
 
 interface SyncAccount {
   id: string
@@ -152,6 +153,8 @@ export const POST = withErrorHandler(async (request: Request) => {
                   null
                 )
 
+                const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
+
                 const reelPayload: Record<string, unknown> = {
                   media_id: item.id,
                   caption: item.caption ?? null,
@@ -167,6 +170,7 @@ export const POST = withErrorHandler(async (request: Request) => {
                   completion_rate: completionRate,
                   avg_watch_time_sec: insights.avg_watch_time ?? null,
                   hashtags: hashtags.length > 0 ? hashtags : null,
+                  category,
                   synced_at: new Date().toISOString(),
                 }
                 if (useMultiAccount) {
@@ -188,6 +192,8 @@ export const POST = withErrorHandler(async (request: Request) => {
                   insights.reach
                 )
 
+                const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
+
                 const postPayload: Record<string, unknown> = {
                   media_id: item.id,
                   media_type: item.media_type,
@@ -203,6 +209,7 @@ export const POST = withErrorHandler(async (request: Request) => {
                   impressions: insights.impressions,
                   engagement_rate: engagementRate,
                   hashtags: hashtags.length > 0 ? hashtags : null,
+                  category,
                   synced_at: new Date().toISOString(),
                 }
                 if (useMultiAccount) {
