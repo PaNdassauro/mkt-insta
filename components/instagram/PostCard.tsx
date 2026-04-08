@@ -21,6 +21,8 @@ const MEDIA_TYPE_LABELS: Record<string, string> = {
 
 export default function PostCard({ post }: PostCardProps) {
   const [imgError, setImgError] = useState(false)
+  // Prefer Supabase Storage URL (persistent) over Instagram CDN URL (expires ~24h)
+  const thumbnailUrl = post.stored_thumbnail_url ?? post.thumbnail_url
   const scoreColors = post.content_score
     ? CONTENT_SCORE_COLORS[post.content_score]
     : null
@@ -38,9 +40,9 @@ export default function PostCard({ post }: PostCardProps) {
         className="block"
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
-          {post.thumbnail_url && !imgError ? (
+          {thumbnailUrl && !imgError ? (
             <Image
-              src={post.thumbnail_url}
+              src={thumbnailUrl}
               alt={post.caption?.slice(0, 50) ?? 'Post'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"

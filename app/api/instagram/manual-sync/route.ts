@@ -27,9 +27,12 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     const action = (body as Record<string, string>).action ?? 'all'
 
-    const endpoints = action === 'refresh-token'
-      ? ['refresh-token']
-      : ['sync', 'sync-stories', 'sync-audience']
+    const endpoints =
+      action === 'refresh-token'
+        ? ['refresh-token']
+        : action === 'backfill-media'
+          ? ['backfill-media?limit=500']
+          : ['sync', 'sync-stories', 'sync-audience']
 
     const results: Record<string, unknown> = {}
 

@@ -21,6 +21,7 @@ import {
   calcCompletionRate,
 } from '@/lib/analytics'
 import { classifyContent } from '@/lib/content-classifier'
+import { persistPostMedia } from '@/lib/storage'
 
 interface SyncAccount {
   id: string
@@ -163,11 +164,17 @@ export const POST = withErrorHandler(async (request: Request) => {
 
                 const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
 
+                // Persist thumbnail to Supabase Storage (IG CDN URLs expire ~24h)
+                const storedThumbnailUrl = item.thumbnail_url
+                  ? await persistPostMedia(item.thumbnail_url, item.id)
+                  : null
+
                 const reelPayload: Record<string, unknown> = {
                   media_id: item.id,
                   caption: item.caption ?? null,
                   permalink: item.permalink ?? null,
                   thumbnail_url: item.thumbnail_url ?? null,
+                  stored_thumbnail_url: storedThumbnailUrl,
                   timestamp: item.timestamp,
                   views: insights.views ?? 0,
                   likes: insights.likes,
@@ -202,12 +209,18 @@ export const POST = withErrorHandler(async (request: Request) => {
 
                 const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
 
+                // Persist thumbnail to Supabase Storage (IG CDN URLs expire ~24h)
+                const storedThumbnailUrl = item.thumbnail_url
+                  ? await persistPostMedia(item.thumbnail_url, item.id)
+                  : null
+
                 const postPayload: Record<string, unknown> = {
                   media_id: item.id,
                   media_type: item.media_type,
                   caption: item.caption ?? null,
                   permalink: item.permalink ?? null,
                   thumbnail_url: item.thumbnail_url ?? null,
+                  stored_thumbnail_url: storedThumbnailUrl,
                   timestamp: item.timestamp,
                   likes: insights.likes,
                   comments: insights.comments,

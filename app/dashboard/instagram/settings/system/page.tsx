@@ -109,6 +109,7 @@ export default function SystemHealthPage() {
   const [refreshingToken, setRefreshingToken] = useState(false)
   const [testingTelegram, setTestingTelegram] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [backfilling, setBackfilling] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -167,6 +168,39 @@ export default function SystemHealthPage() {
       toast.error('Erro ao renovar token')
     } finally {
       setRefreshingToken(false)
+    }
+  }
+
+  async function handleBackfillMedia() {
+    setBackfilling(true)
+    try {
+      const res = await fetchWithAccount('/api/instagram/manual-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'backfill-media' }),
+      })
+      const body = await res.json()
+      if (res.ok) {
+        const result = body?.results?.['backfill-media?limit=500']?.report
+        if (result) {
+          const total = (result.posts_updated ?? 0) + (result.reels_updated ?? 0)
+          toast.success(
+            `Backfill concluido: ${result.posts_updated} posts e ${result.reels_updated} reels recuperados (${result.upload_failures} falhas)`,
+            { duration: 8000 }
+          )
+          if (total === 0) {
+            toast.info('Nenhuma midia foi atualizada — confira se o sync ja persistiu tudo.', { duration: 6000 })
+          }
+        } else {
+          toast.success('Backfill iniciado')
+        }
+      } else {
+        toast.error(body.error ?? 'Erro ao executar backfill')
+      }
+    } catch {
+      toast.error('Erro ao executar backfill')
+    } finally {
+      setBackfilling(false)
     }
   }
 
@@ -568,6 +602,15 @@ export default function SystemHealthPage() {
               disabled={refreshingToken}
             >
               {refreshingToken ? 'Renovando...' : 'Refresh Token'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBackfillMedia}
+              disabled={backfilling}
+              title="Re-baixa todos os thumbnails de posts e reels do Instagram para o Storage. Use uma vez apos a migration."
+            >
+              {backfilling ? 'Recuperando imagens...' : 'Recuperar Imagens'}
             </Button>
             <Button
               size="sm"

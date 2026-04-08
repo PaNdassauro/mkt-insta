@@ -12,6 +12,8 @@ interface ReelCardProps {
 }
 
 export default function ReelCard({ reel }: ReelCardProps) {
+  // Prefer Supabase Storage URL (persistent) over Instagram CDN URL (expires ~24h)
+  const thumbnailUrl = reel.stored_thumbnail_url ?? reel.thumbnail_url
   const scoreColors = reel.content_score ? CONTENT_SCORE_COLORS[reel.content_score] : null
   const scoreLabel = reel.content_score ? CONTENT_SCORE_LABELS[reel.content_score] : null
 
@@ -23,9 +25,9 @@ export default function ReelCard({ reel }: ReelCardProps) {
     <Card className="group overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-200">
       <a href={reel.permalink ?? '#'} target="_blank" rel="noopener noreferrer" className="block">
         <div className="relative aspect-[9/16] max-h-[320px] overflow-hidden bg-muted">
-          {reel.thumbnail_url ? (
+          {thumbnailUrl ? (
             <Image
-              src={reel.thumbnail_url}
+              src={thumbnailUrl}
               alt={reel.caption?.slice(0, 50) ?? 'Reel'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"

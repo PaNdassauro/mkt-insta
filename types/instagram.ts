@@ -35,6 +35,7 @@ export interface InstagramPost {
   caption: string | null
   permalink: string | null
   thumbnail_url: string | null
+  stored_thumbnail_url: string | null
   timestamp: string | null
   likes: number
   comments: number
@@ -56,6 +57,7 @@ export interface InstagramReel {
   caption: string | null
   permalink: string | null
   thumbnail_url: string | null
+  stored_thumbnail_url: string | null
   timestamp: string | null
   views: number
   likes: number
