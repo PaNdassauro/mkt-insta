@@ -2,6 +2,15 @@
 -- DashIG — pg_cron + pg_net Setup
 -- Executar no SQL Editor do Supabase
 -- ==========================================
+--
+-- SECRET ROTATION: O "Bearer dashig-dev-secret-2026" usado em todas as chamadas
+-- abaixo PRECISA bater com process.env.CRON_SECRET no Vercel. Ao rotacionar:
+--   1. Atualizar CRON_SECRET no Vercel
+--   2. Atualizar o valor hardcoded em TODAS as migrations pg_cron (002, 027, 028, ...)
+--   3. Para cada job afetado:
+--        SELECT cron.unschedule('dashig-<job>');
+--        + re-run do cron.schedule com o novo valor
+-- Migracao pra Vault (vault.read_secret) fica como pos-MVP (ver roadmap).
 
 -- 1. Habilitar extensoes necessarias
 CREATE EXTENSION IF NOT EXISTS pg_cron;
