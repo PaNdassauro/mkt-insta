@@ -1,8 +1,11 @@
 import { logger } from '@/lib/logger'
 import { apiSuccess, apiError, getErrorMessage } from '@/lib/api-response'
 import { validateDashboardRequest } from '@/lib/auth'
-import { checkTokenExpiration } from '@/lib/meta-client'
+import { checkTokenExpiration, getAccessToken } from '@/lib/meta-client'
+import { debugToken } from '@/lib/meta-ads-client'
 import { createServerSupabaseClient } from '@/lib/supabase'
+
+const TOKEN_WARNING_DAYS = 60
 
 export const dynamic = "force-dynamic"
 
@@ -14,15 +17,49 @@ export async function GET(request: Request) {
     const supabase = createServerSupabaseClient()
 
     // --- Token status ---
-    let tokenInfo: { status: string; daysLeft: number } = { status: 'unknown', daysLeft: 0 }
+    // Authoritative source: Meta /debug_token on the current env token (.env is
+    // env-first, so this reflects META_ACCESS_TOKEN). Falls back to cached
+    // checkTokenExpiration() if debug_token is unreachable.
+    let tokenInfo: {
+      status: string
+      daysLeft: number
+      expiresAt: number | null
+      warning: boolean
+      warningThresholdDays: number
+    } = {
+      status: 'unknown',
+      daysLeft: 0,
+      expiresAt: null,
+      warning: false,
+      warningThresholdDays: TOKEN_WARNING_DAYS,
+    }
     try {
-      const tokenCheck = await checkTokenExpiration()
+      const token = await getAccessToken()
+      const info = await debugToken(token)
+      const daysLeft = info.expiresAt
+        ? Math.floor((info.expiresAt * 1000 - Date.now()) / 86_400_000)
+        : 0
       tokenInfo = {
-        status: tokenCheck.isExpiring ? 'expiring' : 'valid',
-        daysLeft: tokenCheck.daysLeft,
+        status: !info.isValid ? 'expired' : daysLeft <= 0 ? 'expired' : 'valid',
+        daysLeft: Math.max(daysLeft, 0),
+        expiresAt: info.expiresAt,
+        warning: info.isValid && daysLeft > 0 && daysLeft < TOKEN_WARNING_DAYS,
+        warningThresholdDays: TOKEN_WARNING_DAYS,
       }
     } catch (err) {
-      logger.warn('Failed to check token expiration', 'SystemHealth', { error: err as Error })
+      logger.warn('debug_token failed, falling back to cached expiry', 'SystemHealth', { error: err as Error })
+      try {
+        const tokenCheck = await checkTokenExpiration()
+        tokenInfo = {
+          status: tokenCheck.isExpiring ? 'expiring' : 'valid',
+          daysLeft: tokenCheck.daysLeft,
+          expiresAt: null,
+          warning: tokenCheck.daysLeft > 0 && tokenCheck.daysLeft < TOKEN_WARNING_DAYS,
+          warningThresholdDays: TOKEN_WARNING_DAYS,
+        }
+      } catch (err2) {
+        logger.warn('Failed to check token expiration', 'SystemHealth', { error: err2 as Error })
+      }
     }
 
     // --- Last sync timestamps ---

@@ -56,7 +56,13 @@ interface ReportInfo {
 }
 
 interface SystemHealthData {
-  token: { status: string; daysLeft: number }
+  token: {
+    status: string
+    daysLeft: number
+    expiresAt?: number | null
+    warning?: boolean
+    warningThresholdDays?: number
+  }
   lastSyncs: SyncInfo[]
   cronJobs: CronJob[]
   telegram: { configured: boolean }
@@ -251,7 +257,8 @@ export default function SystemHealthPage() {
 
   function getTokenColor(): 'green' | 'yellow' | 'red' {
     if (!data) return 'red'
-    if (data.token.status === 'valid' && data.token.daysLeft > 14) return 'green'
+    const threshold = data.token.warningThresholdDays ?? 60
+    if (data.token.status === 'valid' && data.token.daysLeft >= threshold) return 'green'
     if (data.token.status === 'valid') return 'yellow'
     return 'red'
   }
@@ -283,14 +290,43 @@ export default function SystemHealthPage() {
     )
   }
 
+  const tokenExpired = data?.token.status === 'expired' || (data?.token.daysLeft ?? 0) <= 0
+  const tokenWarning = data?.token.warning === true
+  const tokenExpiresAtDate = data?.token.expiresAt
+    ? new Date(data.token.expiresAt * 1000).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : null
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Sistema</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Saude do sistema e informacoes tecnicas
+          Saúde do sistema e informações técnicas
         </p>
       </div>
+
+      {/* Token expiration banner */}
+      {tokenExpired && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          <div className="font-semibold">Token Meta expirado</div>
+          <div className="mt-1">
+            O token em <code className="rounded bg-red-100 px-1 py-0.5 text-xs dark:bg-red-900/40">META_ACCESS_TOKEN</code> (.env) está expirado. Gere um novo no Meta Graph API Explorer, substitua no <code className="rounded bg-red-100 px-1 py-0.5 text-xs dark:bg-red-900/40">.env</code> e reinicie o servidor.
+          </div>
+        </div>
+      )}
+      {!tokenExpired && tokenWarning && (
+        <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/40 dark:text-yellow-200">
+          <div className="font-semibold">Token Meta expira em breve</div>
+          <div className="mt-1">
+            Restam <strong>{data?.token.daysLeft} dias</strong>
+            {tokenExpiresAtDate && <> (expira em {tokenExpiresAtDate})</>}. Gere um novo token em <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="underline">Graph API Explorer</a>, substitua <code className="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/40">META_ACCESS_TOKEN</code> no <code className="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/40">.env</code> e reinicie o servidor antes da expiração.
+          </div>
+        </div>
+      )}
 
       {/* Section 1: Status Geral */}
       <Card className="border-0 shadow-sm">

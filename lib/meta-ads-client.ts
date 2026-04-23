@@ -37,6 +37,42 @@ export interface BoostResult {
   status: 'ACTIVE' | 'PAUSED'
 }
 
+export interface AdInsights {
+  spend: number
+  reach: number
+  impressions: number
+  clicks: number
+  ctr: number
+  cpm: number
+  cpc: number
+  frequency: number
+}
+
+export interface AdRow {
+  id: string
+  name: string
+  status: string
+  effectiveStatus: string
+  createdTime: string | null
+  campaign: { id: string; name: string; objective: string | null; status: string | null } | null
+  adset: {
+    id: string
+    name: string
+    status: string | null
+    dailyBudgetBRL: number | null
+    lifetimeBudgetBRL: number | null
+    startTime: string | null
+    endTime: string | null
+  } | null
+  creative: {
+    id: string
+    name: string | null
+    thumbnailUrl: string | null
+    instagramMediaId: string | null
+  } | null
+  insights: AdInsights
+}
+
 // ==========================================
 // Internals
 // ==========================================
@@ -304,4 +340,142 @@ export async function getAdStatus(
     { fields: 'id,status,effective_status' },
     token
   )
+}
+
+// ==========================================
+// List ads + nested insights for dashboard
+// ==========================================
+
+interface RawAdResponse {
+  id: string
+  name: string
+  status: string
+  effective_status: string
+  created_time?: string
+  campaign?: { id: string; name: string; objective?: string; status?: string }
+  adset?: {
+    id: string
+    name: string
+    status?: string
+    daily_budget?: string
+    lifetime_budget?: string
+    start_time?: string
+    end_time?: string
+  }
+  creative?: {
+    id: string
+    name?: string
+    thumbnail_url?: string
+    effective_instagram_media_id?: string
+  }
+  insights?: {
+    data?: Array<{
+      spend?: string
+      reach?: string
+      impressions?: string
+      clicks?: string
+      ctr?: string
+      cpm?: string
+      cpc?: string
+      frequency?: string
+    }>
+  }
+}
+
+function parseNumber(value: string | undefined): number {
+  if (!value) return 0
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+function toRow(raw: RawAdResponse): AdRow {
+  const ins = raw.insights?.data?.[0] ?? {}
+  return {
+    id: raw.id,
+    name: raw.name,
+    status: raw.status,
+    effectiveStatus: raw.effective_status,
+    createdTime: raw.created_time ?? null,
+    campaign: raw.campaign
+      ? {
+          id: raw.campaign.id,
+          name: raw.campaign.name,
+          objective: raw.campaign.objective ?? null,
+          status: raw.campaign.status ?? null,
+        }
+      : null,
+    adset: raw.adset
+      ? {
+          id: raw.adset.id,
+          name: raw.adset.name,
+          status: raw.adset.status ?? null,
+          dailyBudgetBRL: raw.adset.daily_budget ? parseNumber(raw.adset.daily_budget) / 100 : null,
+          lifetimeBudgetBRL: raw.adset.lifetime_budget ? parseNumber(raw.adset.lifetime_budget) / 100 : null,
+          startTime: raw.adset.start_time ?? null,
+          endTime: raw.adset.end_time ?? null,
+        }
+      : null,
+    creative: raw.creative
+      ? {
+          id: raw.creative.id,
+          name: raw.creative.name ?? null,
+          thumbnailUrl: raw.creative.thumbnail_url ?? null,
+          instagramMediaId: raw.creative.effective_instagram_media_id ?? null,
+        }
+      : null,
+    insights: {
+      spend: parseNumber(ins.spend),
+      reach: parseNumber(ins.reach),
+      impressions: parseNumber(ins.impressions),
+      clicks: parseNumber(ins.clicks),
+      ctr: parseNumber(ins.ctr),
+      cpm: parseNumber(ins.cpm),
+      cpc: parseNumber(ins.cpc),
+      frequency: parseNumber(ins.frequency),
+    },
+  }
+}
+
+export async function listAdsWithInsights(
+  opts: { since?: string; until?: string; accountId?: string } = {}
+): Promise<AdRow[]> {
+  const cfg = await getAdAccountConfig(opts.accountId)
+
+  const insightsField =
+    opts.since && opts.until
+      ? `insights.time_range({"since":"${opts.since}","until":"${opts.until}"}){spend,reach,impressions,clicks,ctr,cpm,cpc,frequency}`
+      : `insights{spend,reach,impressions,clicks,ctr,cpm,cpc,frequency}`
+
+  const fields = [
+    'id',
+    'name',
+    'status',
+    'effective_status',
+    'created_time',
+    'campaign{id,name,objective,status}',
+    'adset{id,name,status,daily_budget,lifetime_budget,start_time,end_time}',
+    'creative{id,name,thumbnail_url,effective_instagram_media_id}',
+    insightsField,
+  ].join(',')
+
+  const rows: AdRow[] = []
+  let nextUrl: string | null = `${META_API_BASE_URL}/${cfg.adAccountId}/ads?fields=${encodeURIComponent(fields)}&limit=100&access_token=${encodeURIComponent(cfg.token)}`
+
+  let guard = 0
+  while (nextUrl && guard < 20) {
+    const res = await fetch(nextUrl)
+    const raw = await res.text()
+    if (!res.ok) throw new Error(parseMetaError(raw, res.status))
+
+    const body = JSON.parse(raw) as {
+      data: RawAdResponse[]
+      paging?: { next?: string }
+    }
+    for (const item of body.data ?? []) rows.push(toRow(item))
+    nextUrl = body.paging?.next ?? null
+    guard++
+  }
+
+  logger.info('Listed ads', 'Meta Ads', { count: rows.length, adAccountId: cfg.adAccountId })
+  return rows
 }
