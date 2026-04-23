@@ -5,6 +5,11 @@ import { cookies } from 'next/headers'
 /**
  * Cliente Supabase para uso em API Routes e Server Components.
  * Usa SUPABASE_SERVICE_ROLE_KEY — NUNCA expor no client-side.
+ *
+ * Nota: Next.js 14 patcha `fetch` e deduplica/cacheia chamadas com mesma URL+headers
+ * dentro de uma mesma request. Isso inclui as chamadas internas do supabase-js,
+ * o que pode resultar em dados desatualizados. Passamos `cache: 'no-store'` em
+ * todas as requests pra garantir leitura sempre fresca.
  */
 export function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -14,7 +19,16 @@ export function createServerSupabaseClient() {
     throw new Error('Missing Supabase server environment variables')
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey)
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    global: {
+      fetch: (input, init) =>
+        fetch(input, { ...init, cache: 'no-store' }),
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
 }
 
 /**

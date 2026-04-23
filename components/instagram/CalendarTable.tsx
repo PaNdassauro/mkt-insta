@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import PublishBoostModal from '@/components/instagram/PublishBoostModal'
 import type { EditorialEntry, CalendarStatus } from '@/types/instagram'
 
 const STATUS_CONFIG: Record<CalendarStatus, { label: string; color: string }> = {
@@ -31,6 +32,7 @@ export default function CalendarTable() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | CalendarStatus>('all')
   const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [publishBoostId, setPublishBoostId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
@@ -315,15 +317,26 @@ export default function CalendarTable() {
                             </Button>
                           )}
                           {entry.status === 'APPROVED' && (entry.media_url || (entry.carousel_urls && entry.carousel_urls.length > 0)) && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 text-xs text-emerald-600"
-                              onClick={() => publishEntry(entry.id)}
-                              disabled={publishingId === entry.id}
-                            >
-                              {publishingId === entry.id ? 'Publicando...' : 'Publicar'}
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-emerald-600"
+                                onClick={() => publishEntry(entry.id)}
+                                disabled={publishingId === entry.id}
+                              >
+                                {publishingId === entry.id ? 'Publicando...' : 'Publicar'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-indigo-600"
+                                onClick={() => setPublishBoostId(entry.id)}
+                                title="Publicar no Instagram e criar campanha no Meta Ads em seguida"
+                              >
+                                Publicar + Impulsionar
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="sm"
@@ -350,6 +363,17 @@ export default function CalendarTable() {
             <span>{filtered.filter((e) => e.status === 'PUBLISHED').length} publicados</span>
           </div>
         </Card>
+      )}
+
+      {publishBoostId && (
+        <PublishBoostModal
+          calendarEntryId={publishBoostId}
+          open={Boolean(publishBoostId)}
+          onOpenChange={(open) => {
+            if (!open) setPublishBoostId(null)
+          }}
+          onSuccess={() => fetchEntries()}
+        />
       )}
     </div>
   )
