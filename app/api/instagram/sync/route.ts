@@ -164,16 +164,19 @@ export const POST = withErrorHandler(async (request: Request) => {
 
                 const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
 
-                // Persist thumbnail to Supabase Storage (IG CDN URLs expire ~24h)
-                const storedThumbnailUrl = item.thumbnail_url
-                  ? await persistPostMedia(item.thumbnail_url, item.id)
+                // Persist thumbnail to Supabase Storage (IG CDN URLs expire ~24h).
+                // Meta returns thumbnail_url only for videos/reels; for IMAGE/CAROUSEL the
+                // static image lives in media_url. Fall back so carousels also get cached.
+                const sourceThumbUrl = item.thumbnail_url ?? item.media_url ?? null
+                const storedThumbnailUrl = sourceThumbUrl
+                  ? await persistPostMedia(sourceThumbUrl, item.id)
                   : null
 
                 const reelPayload: Record<string, unknown> = {
                   media_id: item.id,
                   caption: item.caption ?? null,
                   permalink: item.permalink ?? null,
-                  thumbnail_url: item.thumbnail_url ?? null,
+                  thumbnail_url: sourceThumbUrl,
                   stored_thumbnail_url: storedThumbnailUrl,
                   timestamp: item.timestamp,
                   views: insights.views ?? 0,
@@ -196,8 +199,12 @@ export const POST = withErrorHandler(async (request: Request) => {
                   reelPayload,
                   { onConflict: 'media_id' }
                 )
-                if (error) logger.warn(`Reel upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
-                report.media.reels++
+                if (error) {
+                  logger.warn(`Reel upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
+                  report.media.errors++
+                } else {
+                  report.media.reels++
+                }
               } else {
                 const engagementRate = calcEngagementRate(
                   insights.likes,
@@ -209,9 +216,10 @@ export const POST = withErrorHandler(async (request: Request) => {
 
                 const category = classifyContent(item.caption ?? null, hashtags.length > 0 ? hashtags : null)
 
-                // Persist thumbnail to Supabase Storage (IG CDN URLs expire ~24h)
-                const storedThumbnailUrl = item.thumbnail_url
-                  ? await persistPostMedia(item.thumbnail_url, item.id)
+                // See reel branch above — thumbnail_url is null for IMAGE/CAROUSEL, media_url has the real image.
+                const sourceThumbUrl = item.thumbnail_url ?? item.media_url ?? null
+                const storedThumbnailUrl = sourceThumbUrl
+                  ? await persistPostMedia(sourceThumbUrl, item.id)
                   : null
 
                 const postPayload: Record<string, unknown> = {
@@ -219,7 +227,7 @@ export const POST = withErrorHandler(async (request: Request) => {
                   media_type: item.media_type,
                   caption: item.caption ?? null,
                   permalink: item.permalink ?? null,
-                  thumbnail_url: item.thumbnail_url ?? null,
+                  thumbnail_url: sourceThumbUrl,
                   stored_thumbnail_url: storedThumbnailUrl,
                   timestamp: item.timestamp,
                   likes: insights.likes,
@@ -241,8 +249,12 @@ export const POST = withErrorHandler(async (request: Request) => {
                   postPayload,
                   { onConflict: 'media_id' }
                 )
-                if (error) logger.warn(`Post upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
-                report.media.posts++
+                if (error) {
+                  logger.warn(`Post upsert error (${item.id})${accountLabel}: ${error.message}`, 'DashIG Sync')
+                  report.media.errors++
+                } else {
+                  report.media.posts++
+                }
               }
             } catch (err) {
               logger.warn(`Media sync error (${item.id})${accountLabel}`, 'DashIG Sync', { error: err as Error })

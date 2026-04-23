@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       action === 'refresh-token'
         ? ['refresh-token']
         : action === 'backfill-media'
-          ? ['backfill-media?limit=500']
-          : ['sync', 'sync-stories', 'sync-audience']
+          ? ['backfill-media']
+          : ['sync', 'sync-stories', 'sync-audience', 'backfill-media']
 
     const results: Record<string, unknown> = {}
 

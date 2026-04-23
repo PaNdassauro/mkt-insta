@@ -35,7 +35,9 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const supabase = createServerSupabaseClient()
   const { searchParams } = new URL(request.url)
-  const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
+  // Default: cover the entire account. Callers can pass ?limit=N to cap for debugging.
+  const limitParam = Number(searchParams.get('limit'))
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10_000
   const singleAccountId = request.headers.get('x-account-id')
 
   // Buscar contas ativas (mesma logica do sync)

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import ReelCard from '@/components/instagram/ReelCard'
 import ExportButton from '@/components/instagram/ExportButton'
+import CollabNotice from '@/components/instagram/CollabNotice'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -72,6 +73,8 @@ export default function ReelsPage() {
         </div>
         <ExportButton type="reels" />
       </div>
+
+      <CollabNotice />
 
       {!isLoading && reels.length > 0 && (
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">

@@ -32,13 +32,35 @@ export type BoostCta =
   | 'SEND_MESSAGE'
   | 'APPLY_NOW'
 
+export interface BoostInterest {
+  id: string
+  name: string
+}
+
+export interface BoostCity {
+  key: string
+  name: string
+  radiusKm?: number // default 17 km (~10 mi, Meta default)
+}
+
+export interface BoostRegion {
+  key: string
+  name: string
+}
+
 export interface BoostAudience {
   countries?: string[] // ISO-2: ['BR', 'US'], default ['BR']
+  cities?: BoostCity[] // optional — overrides country targeting at city level
+  regions?: BoostRegion[] // optional — state/region
   ageMin?: number // default 18
   ageMax?: number // default 65
   gender?: BoostGender // default 'ALL'
   placements?: BoostPlacement[] // default all four
+  interests?: BoostInterest[] // optional — narrow to people interested in these topics
+  excludeFollowers?: boolean // excludes people who follow the FB Page (and usually the linked IG account)
 }
+
+export type BoostBudgetType = 'daily' | 'lifetime'
 
 export interface BoostInput {
   mediaId: string
@@ -51,6 +73,10 @@ export interface BoostInput {
   audience?: BoostAudience
   destinationUrl?: string // required for TRAFFIC / ENGAGEMENT
   cta?: BoostCta // default LEARN_MORE for TRAFFIC/ENGAGEMENT
+  budgetType?: BoostBudgetType // default 'daily'
+  totalBudgetBRL?: number // used when budgetType = 'lifetime'
+  startDate?: string // ISO (YYYY-MM-DD or full ISO). Default: now + 1 min
+  urlTags?: string // raw query string e.g. "utm_source=meta&utm_campaign=mendoza"
 }
 
 export interface BoostResult {
@@ -273,9 +299,15 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   const status: 'ACTIVE' | 'PAUSED' = launchImmediately ? 'ACTIVE' : 'PAUSED'
   const objective: BoostObjective = input.objective ?? 'AWARENESS'
   const needsUrl = objective === 'TRAFFIC' || objective === 'ENGAGEMENT'
+  const budgetType: BoostBudgetType = input.budgetType ?? 'daily'
 
   if (!mediaId) throw new Error('mediaId obrigatorio')
-  if (!(dailyBudgetBRL > 0)) throw new Error('dailyBudgetBRL deve ser > 0')
+  if (budgetType === 'daily') {
+    if (!(dailyBudgetBRL > 0)) throw new Error('dailyBudgetBRL deve ser > 0')
+  } else {
+    const total = Number(input.totalBudgetBRL)
+    if (!(total > 0)) throw new Error('totalBudgetBRL deve ser > 0 quando budgetType=lifetime')
+  }
   if (!(durationDays >= 1 && durationDays <= 30)) {
     throw new Error('durationDays deve estar entre 1 e 30')
   }
@@ -295,23 +327,35 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   // Audience defaults
   const audience = input.audience ?? {}
   const countries = audience.countries?.length ? audience.countries : ['BR']
+  const cities = audience.cities?.length ? audience.cities : undefined
+  const regions = audience.regions?.length ? audience.regions : undefined
   const ageMin = audience.ageMin ?? 18
   const ageMax = audience.ageMax ?? 65
   const gender: BoostGender = audience.gender ?? 'ALL'
   const placements: BoostPlacement[] = audience.placements?.length
     ? audience.placements
     : ['stream', 'story', 'explore', 'reels']
+  const interests = audience.interests?.length ? audience.interests : undefined
+  const excludeFollowers = audience.excludeFollowers === true
 
   if (ageMin < 13 || ageMax > 65 || ageMin > ageMax) {
     throw new Error('Faixa etaria invalida (13-65, min <= max)')
   }
 
   const cfg = await getAdAccountConfig(accountId)
-  const dailyBudgetCents = Math.round(dailyBudgetBRL * 100)
   const now = Date.now()
-  const startTime = new Date(now + 60_000).toISOString() // 1 min from now
-  const endTime = new Date(now + durationDays * 86_400_000).toISOString()
-  const nameBase = buildCampaignName(caption, new Date(now))
+
+  // Start time: default "now + 1 min"; override with input.startDate if >= now
+  let startTimeMs = now + 60_000
+  if (input.startDate) {
+    const requested = Date.parse(input.startDate)
+    if (Number.isFinite(requested)) {
+      startTimeMs = Math.max(requested, now + 60_000)
+    }
+  }
+  const startTime = new Date(startTimeMs).toISOString()
+  const endTime = new Date(startTimeMs + durationDays * 86_400_000).toISOString()
+  const nameBase = buildCampaignName(caption, new Date(startTimeMs))
   const { campaignObjective, optimizationGoal } = OBJECTIVE_MAP[objective]
 
   logger.info('Iniciando boost', 'Meta Ads', {
@@ -336,8 +380,24 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   )
 
   // 2. Ad Set
+  // Build geo_locations: prefer cities+regions when provided, else fall back to country(ies)
+  const geoLocations: Record<string, unknown> = {}
+  if (cities) {
+    geoLocations.cities = cities.map((c) => ({
+      key: c.key,
+      radius: Math.round((c.radiusKm ?? 17) / 1.609344), // Meta expects miles
+      distance_unit: 'mile',
+    }))
+  }
+  if (regions) {
+    geoLocations.regions = regions.map((r) => ({ key: r.key }))
+  }
+  if (!cities && !regions) {
+    geoLocations.countries = countries
+  }
+
   const targeting: Record<string, unknown> = {
-    geo_locations: { countries },
+    geo_locations: geoLocations,
     age_min: ageMin,
     age_max: ageMax,
     publisher_platforms: ['instagram'],
@@ -345,13 +405,31 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   }
   const genderCodes = GENDER_CODE[gender]
   if (genderCodes) targeting.genders = genderCodes
+  if (interests) {
+    targeting.flexible_spec = [
+      {
+        interests: interests.map((i) => ({ id: i.id, name: i.name })),
+      },
+    ]
+  }
+  if (excludeFollowers) {
+    // Excludes people connected to the FB Page linked to this ad account.
+    // Best proxy for "don't show to current followers" that doesn't require a pre-built custom audience.
+    targeting.excluded_connections = [{ id: cfg.pageId }]
+  }
+
+  // Budget: daily vs lifetime (mutually exclusive)
+  const budgetFields: Record<string, number> =
+    budgetType === 'lifetime'
+      ? { lifetime_budget: Math.round((input.totalBudgetBRL ?? 0) * 100) }
+      : { daily_budget: Math.round(dailyBudgetBRL * 100) }
 
   const adSet = await postToMeta<{ id: string }>(
     `/${cfg.adAccountId}/adsets`,
     {
       name: nameBase,
       campaign_id: campaign.id,
-      daily_budget: dailyBudgetCents,
+      ...budgetFields,
       billing_event: 'IMPRESSIONS',
       optimization_goal: optimizationGoal,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
@@ -374,6 +452,11 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
       type: input.cta ?? 'LEARN_MORE',
       value: { link: input.destinationUrl!.trim() },
     })
+  }
+  // UTM / url tags: Meta appends this query string to every outbound link click
+  const urlTags = input.urlTags?.trim()
+  if (urlTags) {
+    creativePayload.url_tags = urlTags.replace(/^\?/, '')
   }
 
   const creative = await postToMeta<{ id: string }>(

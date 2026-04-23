@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import CollabNotice from '@/components/instagram/CollabNotice'
 
 interface SyncInfo {
   tipo: string
@@ -419,6 +420,47 @@ export default function SystemHealthPage() {
         </CardContent>
       </Card>
 
+      {/* Section 0.5: Sincronização */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold mb-1">Sincronização</h2>
+              <p className="text-sm text-muted-foreground">
+                Puxa posts, reels, stories e audiência da Meta Graph API pra dentro do banco. Rode manualmente sempre que os dados parecerem atrasados.
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {data?.lastSyncs?.map((sync) => (
+                  <div key={sync.tipo} className="rounded-md bg-muted/40 p-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {sync.tipo}
+                    </div>
+                    <div className="mt-0.5 text-xs font-medium">
+                      {sync.ultimaExecucao ? formatDateTime(sync.ultimaExecucao) : 'Nunca'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing}
+              className="shrink-0"
+            >
+              {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
+            </Button>
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Funciona em dev e em produção — o botão chama <code className="rounded bg-muted px-1 py-0.5">/api/instagram/manual-sync</code> que encadeia sync de posts/reels + stories + audiência com o <code className="rounded bg-muted px-1 py-0.5">CRON_SECRET</code> internamente.
+          </p>
+
+          <CollabNotice className="mt-4" />
+        </CardContent>
+      </Card>
+
       {/* Section 1: Status Geral */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
@@ -729,15 +771,8 @@ export default function SystemHealthPage() {
       {/* Section 7: Acoes Rapidas */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Acoes Rapidas</h2>
+          <h2 className="text-lg font-semibold mb-4">Ações Rápidas</h2>
           <div className="flex flex-wrap gap-3">
-            <Button
-              size="sm"
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              {syncing ? 'Sincronizando...' : 'Sync Manual'}
-            </Button>
             <Button
               size="sm"
               variant="outline"
