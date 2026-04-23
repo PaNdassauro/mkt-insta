@@ -140,7 +140,7 @@ Usuário flaggou estes 2 do Tier 2 como prioritários.
 - `npm run lint` — só warnings pré-existentes de `<img>` em calendar/messages (não afetados por este PR)
 
 ### Pendente / próximos passos
-- Aplicar migrations 027 e 028 no Supabase SQL Editor (ou esperar o item #10 do roadmap — migration tracker automatizado)
+- [x] ~~Aplicar migrations 027 e 028 no Supabase SQL Editor~~ — feito em 23/04/2026 via SQL Editor. `SELECT jobname FROM cron.job` lista os 7 jobs (5 DashIG + auto-publish + knowledge-scrape). `dashig-refresh-token` roda pela 1ª vez em 01/05/2026 00h BRT.
 - Rotacionar `CRON_SECRET` (migração pro Vault do Supabase) fica como pós-MVP
-- Testar manualmente: boost de carrossel + público personalizado real
+- Testar manualmente: boost de carrossel + público personalizado real (precisa de conta de ads ativa com público ≥ 100 pessoas)
 - Itens do roadmap não cobertos aqui: #2 upload de mídia no calendário, #4 Campaign Studio↔Impulsionar, #5 drill-down de ads, #7 testes, #8 `.env.example`, #9 observabilidade, #11 templates

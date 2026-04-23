@@ -2,20 +2,23 @@
 
 > Snapshot em **23/04/2026** após sessão de integração Boost / Ads / Sistema / Campaign Studio.
 > Ordem vertical = impacto decrescente. Dentro de cada bloco, itens na ordem que eu atacaria.
+> Última atualização: 23/04/2026 — ver `tasks/todo.md` pro detalhe da sessão.
 
 ---
 
 ## 🔴 Crítico — bloqueia uso em produção
 
-### 1. Crons não rodam sozinhos
-- [ ] Adicionar bloco `crons` em [vercel.json](vercel.json) (hoje só tem `{"framework":"nextjs"}`)
-- [ ] Cron: `/api/instagram/sync` diário (sugestão: `0 11 * * *` — 08:00 BRT)
-- [ ] Cron: `/api/instagram/sync-stories` 4×/dia (`0 */6 * * *`)
-- [ ] Cron: `/api/instagram/sync-audience` semanal (`0 11 * * 1`)
-- [ ] Cron: `/api/instagram/refresh-token` a cada 7 dias (`0 3 */7 * *`)
-- [ ] Cada cron precisa do header `Authorization: Bearer {CRON_SECRET}` — Vercel Cron já injeta isso via config
+### 1. ~~Crons não rodam sozinhos~~ ✅ RESOLVIDO (23/04/2026)
+Cron nunca foi Vercel — é `pg_cron` + `pg_net` no Supabase (migration 002). Estado final aplicado em prod:
+- [x] `dashig-sync-daily` — `0 11 * * *`
+- [x] `dashig-sync-stories` — `0 */6 * * *` (migration 028 aumentou de 1×/dia pra 4×/dia)
+- [x] `dashig-sync-audience` — `0 11 * * 1`
+- [x] `dashig-refresh-token` — `0 3 */7 * *` (migration 027 agendou — estava faltando, risco de expiração silenciosa)
+- [x] `dashig-report-monthly` — `0 8 1 * *`
+- [x] `dashig-auto-publish` — `*/30 * * * *` (pre-existente)
+- [x] `dashig-knowledge-scrape` — `0 9 * * 1` (pre-existente)
 
-**Impacto**: sem isso, posts/reels/métricas envelhecem até alguém clicar "Sincronizar agora" na aba Sistema. Hoje o app funciona só em demos manuais.
+**Débito técnico restante:** secret `dashig-dev-secret-2026` está hardcoded em todas as migrations pg_cron em vez de ler `CRON_SECRET` do env. Migração pro Vault do Supabase (`vault.read_secret`) fica como pós-MVP — ver header da migration 002.
 
 ### 2. Calendário não tem upload de mídia
 - [ ] Botão "Upload" em cada entrada do calendário (UI em [components/instagram/CalendarTable.tsx](components/instagram/CalendarTable.tsx))
@@ -25,13 +28,12 @@
 
 **Impacto**: sem `media_url`, `/api/instagram/publish` rejeita a entrada com "Adicione uma URL de midia antes de publicar". Hoje o pipeline de publicação só roda se alguém colar URL direto no banco. O "Publicar + Impulsionar" que construímos fica inutilizável sem esse botão.
 
-### 3. Ads dashboard é só leitura
-- [ ] Botão "Pausar" em cada linha da tabela de ads ativos (Meta Marketing API: `POST /{ad_id}` com `status=PAUSED`)
-- [ ] Botão "Ativar" em ads pausados
-- [ ] Botão "Excluir" com confirmação (soft: `status=DELETED`)
-- [ ] Endpoint `PATCH /api/instagram/ads/[adId]/status` centraliza as 3 ações
+### 3. ~~Ads dashboard é só leitura~~ ✅ RESOLVIDO (23/04/2026 — commit `74cacad`)
+- [x] Endpoint `PATCH /api/instagram/ads/[adId]/status` aceita ACTIVE/PAUSED/DELETED
+- [x] 3 botões ícone (Pause/Play/Trash) na tabela com optimistic update + toast + log em `activity_log`
+- [x] `confirm()` nativo antes do DELETE
 
-**Impacto**: hoje, se um boost sai errado (criativo quebrado, audiência errada), o usuário tem que ir pro Meta Ads Manager pra mitigar. No app, a melhor coisa que ele pode fazer é abrir o link "Gerenciar".
+**Ainda pendente:** drill-down + agrupamento por campanha → virou item #5 abaixo.
 
 ---
 
@@ -53,12 +55,11 @@
 
 **Impacto**: 796 ads numa lista plana vira inviável. Agrupar + drill-down é como todo mundo que usa Ads Manager pensa.
 
-### 6. Sync de stories silenciosamente erra
-- [ ] Em [app/api/instagram/sync-stories/route.ts](app/api/instagram/sync-stories/route.ts), tratar especificamente o erro `(#10) Not enough viewers for the media to show insights` — é esperado, não deve virar erro no log
-- [ ] Pular stories recentes (< 2h) onde Meta ainda não consolidou views
-- [ ] Converter em `skipped` no report em vez de `errors`
-
-**Impacto**: hoje sync-stories sempre retorna erro mesmo quando tudo funcionou. Poluição no monitoramento.
+### 6. ~~Sync de stories silenciosamente erra~~ ✅ RESOLVIDO (23/04/2026 — commit `74cacad`)
+- [x] `getStoryInsights` em [lib/meta-client.ts](lib/meta-client.ts) trata `(#10) Not enough viewers` retornando `{skipped: true}`
+- [x] Stories < 2h pulam métricas (Meta ainda não consolidou)
+- [x] Response separa `stories_skipped` de `stories_synced`
+- [x] Métricas válidas de syncs anteriores são preservadas quando o atual foi skipped
 
 ---
 
@@ -88,11 +89,12 @@
 
 ---
 
-## 🔵 Pós-MVP de boost (mencionados mas não priorizados)
+## 🔵 Pós-MVP de boost
 
-Lista de features Tier 2 que sobraram do boost (Tier 1 completo):
+Features Tier 2 do boost:
 
-- [ ] Públicos personalizados (visitantes do site, engajadores do IG) — requer criar audiência antes no Ads Manager
+- [x] ~~Impulsionamento de carrossel~~ (23/04/2026, commit `74cacad`) — backend já aceitava via `source_instagram_media_id`; adicionado pre-flight `is_eligible_for_promotion` pra falhar cedo
+- [x] ~~Públicos personalizados~~ (23/04/2026, commit `74cacad`) — GET `/api/instagram/ads/audiences`, include/exclude no modal, desabilita públicos < 100 pessoas
 - [ ] Lookalike audiences — requer fonte (lista de leads)
 - [ ] Pixel/conversion tracking — requer pixel instalado no site
 - [ ] Dayparting (só rodar das 18h-22h) — requer orçamento vitalício + UI calendário
@@ -111,4 +113,7 @@ Em ordem cronológica dos commits:
 - `c0f4215` — Ads performance dashboard (`/dashboard/instagram/ads`), 60-day token warning no Sistema, acentos no sidebar
 - `73ebe64` — Merge Configurações + Sistema, opções avançadas no boost (objetivo, URL+CTA, idade, gênero, países, placements), logos da marca no sidebar
 - `90e1686` — "Publicar + Impulsionar" no calendário, fix de cache de fetch do Supabase (mostrava só 1 de 3 campanhas)
-- *(pendente, ainda não commitado)* — 6 campos Tier 1 no boost (interesses, cidades/estados, data início, UTM tags, orçamento vitalício, excluir seguidores), TargetingSearch autocomplete, endpoint proxy `/meta-targeting/search`, validação compartilhada entre boost e publish-boost, sync com fix de contador + fallback `media_url` em IMAGE/CAROUSEL, `manual-sync` encadeando `backfill-media`, aviso de co-authoring em Posts/Reels/Sistema, migration tracker de `lib/supabase.ts` com `cache: 'no-store'`
+- `1fa2d4c` — 6 campos Tier 1 no boost (interesses, cidades/estados, data início, UTM tags, orçamento vitalício, excluir seguidores), TargetingSearch autocomplete, endpoint proxy `/meta-targeting/search`, validação compartilhada boost↔publish-boost, sync com fix de contador + fallback `media_url` em IMAGE/CAROUSEL, `manual-sync` encadeando `backfill-media`, aviso de co-authoring em Posts/Reels/Sistema, migration tracker de `lib/supabase.ts` com `cache: 'no-store'`
+- `7bb7377` — Header period selector filtra Posts/Reels/Overview de verdade
+- `2ff802d` — Migrations pg_cron: agenda `dashig-refresh-token` (estava ausente) + aumenta `dashig-sync-stories` pra 4×/dia + header documentando rotação de `CRON_SECRET` (aplicadas em prod no mesmo dia)
+- `74cacad` — 4 blocos: (a) ads dashboard mutável com pause/play/delete, (b) sync-stories silencioso no `(#10) Not enough viewers` + skip < 2h, (c) pre-flight de elegibilidade no boost (formaliza suporte a carrossel), (d) públicos personalizados no boost com include/exclude
