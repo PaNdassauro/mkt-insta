@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePeriodFilter } from '@/hooks/usePeriodFilter'
 import type { InstagramPost } from '@/types/instagram'
 
 interface UsePostPerformanceParams {
@@ -32,6 +33,8 @@ export function usePostPerformance(
     contentScore = null,
   } = params
 
+  const { startDate, endDate } = usePeriodFilter()
+
   const [posts, setPosts] = useState<InstagramPost[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -48,6 +51,8 @@ export function usePostPerformance(
       })
       if (mediaType) searchParams.set('media_type', mediaType)
       if (contentScore) searchParams.set('content_score', contentScore)
+      if (startDate) searchParams.set('since', startDate)
+      if (endDate) searchParams.set('until', endDate)
 
       const res = await fetch(`/api/instagram/posts?${searchParams}`)
       if (!res.ok) throw new Error('Erro ao buscar posts')
@@ -59,7 +64,7 @@ export function usePostPerformance(
     } finally {
       setIsLoading(false)
     }
-  }, [limit, offset, sortBy, order, mediaType, contentScore])
+  }, [limit, offset, sortBy, order, mediaType, contentScore, startDate, endDate])
 
   useEffect(() => {
     fetchData()

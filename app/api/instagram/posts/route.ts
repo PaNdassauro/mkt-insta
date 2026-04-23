@@ -18,6 +18,8 @@ export const GET = withErrorHandler(async (request: Request) => {
   const order = searchParams.get('order') || 'desc'
   const mediaType = searchParams.get('media_type')
   const contentScore = searchParams.get('content_score')
+  const since = searchParams.get('since') // YYYY-MM-DD
+  const until = searchParams.get('until') // YYYY-MM-DD
 
   const supabase = createServerSupabaseClient()
   let query = supabase
@@ -32,6 +34,8 @@ export const GET = withErrorHandler(async (request: Request) => {
   if (contentScore) {
     query = query.eq('content_score', contentScore)
   }
+  if (since) query = query.gte('timestamp', `${since}T00:00:00Z`)
+  if (until) query = query.lte('timestamp', `${until}T23:59:59Z`)
 
   const validSortColumns = ['timestamp', 'engagement_rate', 'reach', 'likes', 'comments', 'saves', 'shares']
   const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'timestamp'

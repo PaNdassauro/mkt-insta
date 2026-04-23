@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePeriodFilter } from '@/hooks/usePeriodFilter'
 import type { InstagramReel } from '@/types/instagram'
 
 interface UseReelPerformanceParams {
@@ -29,6 +30,8 @@ export function useReelPerformance(
     contentScore = null,
   } = params
 
+  const { startDate, endDate } = usePeriodFilter()
+
   const [reels, setReels] = useState<InstagramReel[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,6 +47,8 @@ export function useReelPerformance(
         order,
       })
       if (contentScore) searchParams.set('content_score', contentScore)
+      if (startDate) searchParams.set('since', startDate)
+      if (endDate) searchParams.set('until', endDate)
 
       const res = await fetch(`/api/instagram/reels?${searchParams}`)
       if (!res.ok) throw new Error('Erro ao buscar reels')
@@ -55,7 +60,7 @@ export function useReelPerformance(
     } finally {
       setIsLoading(false)
     }
-  }, [limit, offset, sortBy, order, contentScore])
+  }, [limit, offset, sortBy, order, contentScore, startDate, endDate])
 
   useEffect(() => {
     fetchData()
