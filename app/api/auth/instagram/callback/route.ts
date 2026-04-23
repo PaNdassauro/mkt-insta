@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic"
  * 4. Busca paginas do Facebook vinculadas
  * 5. Para cada pagina, busca a conta IG Business vinculada
  * 6. Salva a conta com token em instagram_accounts
- * 7. Redireciona para /dashboard/instagram/settings/accounts
+ * 7. Redireciona para /dashboard/instagram/settings/system
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const errorDescription = searchParams.get('error_description')
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mkt-insta.vercel.app'
-  const accountsPage = `${appUrl}/dashboard/instagram/settings/accounts`
+  const accountsPage = `${appUrl}/dashboard/instagram/settings/system`
 
   // Erro do Meta (usuario negou permissao, etc.)
   if (error) {

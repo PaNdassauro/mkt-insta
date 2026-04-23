@@ -19,6 +19,27 @@ export interface TokenDebugInfo {
   appId: string | null
 }
 
+export type BoostObjective = 'AWARENESS' | 'TRAFFIC' | 'ENGAGEMENT'
+export type BoostGender = 'ALL' | 'MALE' | 'FEMALE'
+export type BoostPlacement = 'stream' | 'story' | 'explore' | 'reels'
+export type BoostCta =
+  | 'LEARN_MORE'
+  | 'SHOP_NOW'
+  | 'SIGN_UP'
+  | 'CONTACT_US'
+  | 'BOOK_TRAVEL'
+  | 'GET_OFFER'
+  | 'SEND_MESSAGE'
+  | 'APPLY_NOW'
+
+export interface BoostAudience {
+  countries?: string[] // ISO-2: ['BR', 'US'], default ['BR']
+  ageMin?: number // default 18
+  ageMax?: number // default 65
+  gender?: BoostGender // default 'ALL'
+  placements?: BoostPlacement[] // default all four
+}
+
 export interface BoostInput {
   mediaId: string
   dailyBudgetBRL: number
@@ -26,6 +47,10 @@ export interface BoostInput {
   caption?: string | null
   launchImmediately?: boolean
   accountId?: string
+  objective?: BoostObjective // default AWARENESS
+  audience?: BoostAudience
+  destinationUrl?: string // required for TRAFFIC / ENGAGEMENT
+  cta?: BoostCta // default LEARN_MORE for TRAFFIC/ENGAGEMENT
 }
 
 export interface BoostResult {
@@ -227,15 +252,58 @@ export async function debugToken(token: string): Promise<TokenDebugInfo> {
 // Boost orchestrator (campaign → ad set → creative → ad)
 // ==========================================
 
+const OBJECTIVE_MAP: Record<
+  BoostObjective,
+  { campaignObjective: string; optimizationGoal: string }
+> = {
+  AWARENESS: { campaignObjective: 'OUTCOME_AWARENESS', optimizationGoal: 'REACH' },
+  TRAFFIC: { campaignObjective: 'OUTCOME_TRAFFIC', optimizationGoal: 'LINK_CLICKS' },
+  ENGAGEMENT: { campaignObjective: 'OUTCOME_ENGAGEMENT', optimizationGoal: 'POST_ENGAGEMENT' },
+}
+
+const GENDER_CODE: Record<BoostGender, number[] | undefined> = {
+  ALL: undefined,
+  MALE: [1],
+  FEMALE: [2],
+}
+
 export async function boostInstagramPost(input: BoostInput): Promise<BoostResult> {
   const { mediaId, dailyBudgetBRL, durationDays, caption, accountId } = input
   const launchImmediately = input.launchImmediately ?? false
   const status: 'ACTIVE' | 'PAUSED' = launchImmediately ? 'ACTIVE' : 'PAUSED'
+  const objective: BoostObjective = input.objective ?? 'AWARENESS'
+  const needsUrl = objective === 'TRAFFIC' || objective === 'ENGAGEMENT'
 
   if (!mediaId) throw new Error('mediaId obrigatorio')
   if (!(dailyBudgetBRL > 0)) throw new Error('dailyBudgetBRL deve ser > 0')
   if (!(durationDays >= 1 && durationDays <= 30)) {
     throw new Error('durationDays deve estar entre 1 e 30')
+  }
+  if (needsUrl) {
+    const url = input.destinationUrl?.trim()
+    if (!url) throw new Error(`Objetivo ${objective} exige uma URL de destino`)
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        throw new Error('URL deve comecar com http:// ou https://')
+      }
+    } catch {
+      throw new Error('URL de destino invalida')
+    }
+  }
+
+  // Audience defaults
+  const audience = input.audience ?? {}
+  const countries = audience.countries?.length ? audience.countries : ['BR']
+  const ageMin = audience.ageMin ?? 18
+  const ageMax = audience.ageMax ?? 65
+  const gender: BoostGender = audience.gender ?? 'ALL'
+  const placements: BoostPlacement[] = audience.placements?.length
+    ? audience.placements
+    : ['stream', 'story', 'explore', 'reels']
+
+  if (ageMin < 13 || ageMax > 65 || ageMin > ageMax) {
+    throw new Error('Faixa etaria invalida (13-65, min <= max)')
   }
 
   const cfg = await getAdAccountConfig(accountId)
@@ -244,20 +312,22 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   const startTime = new Date(now + 60_000).toISOString() // 1 min from now
   const endTime = new Date(now + durationDays * 86_400_000).toISOString()
   const nameBase = buildCampaignName(caption, new Date(now))
+  const { campaignObjective, optimizationGoal } = OBJECTIVE_MAP[objective]
 
   logger.info('Iniciando boost', 'Meta Ads', {
     mediaId,
     dailyBudgetBRL,
     durationDays,
+    objective,
     adAccountId: cfg.adAccountId,
   })
 
-  // 1. Campaign — AWARENESS: no external URL required, optimizes for reach
+  // 1. Campaign
   const campaign = await postToMeta<{ id: string }>(
     `/${cfg.adAccountId}/campaigns`,
     {
       name: nameBase,
-      objective: 'OUTCOME_AWARENESS',
+      objective: campaignObjective,
       status: status,
       special_ad_categories: '[]',
       is_adset_budget_sharing_enabled: false,
@@ -265,14 +335,16 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
     cfg.token
   )
 
-  // 2. Ad Set — IG-only placements, BR, engagement optimization
-  const targeting = {
-    geo_locations: { countries: ['BR'] },
-    age_min: 18,
-    age_max: 65,
+  // 2. Ad Set
+  const targeting: Record<string, unknown> = {
+    geo_locations: { countries },
+    age_min: ageMin,
+    age_max: ageMax,
     publisher_platforms: ['instagram'],
-    instagram_positions: ['stream', 'story', 'explore', 'reels'],
+    instagram_positions: placements,
   }
+  const genderCodes = GENDER_CODE[gender]
+  if (genderCodes) targeting.genders = genderCodes
 
   const adSet = await postToMeta<{ id: string }>(
     `/${cfg.adAccountId}/adsets`,
@@ -281,7 +353,7 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
       campaign_id: campaign.id,
       daily_budget: dailyBudgetCents,
       billing_event: 'IMPRESSIONS',
-      optimization_goal: 'REACH',
+      optimization_goal: optimizationGoal,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       start_time: startTime,
       end_time: endTime,
@@ -291,14 +363,22 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
     cfg.token
   )
 
-  // 3. Ad Creative — reference existing IG post
+  // 3. Ad Creative — reference existing IG post, plus optional CTA/link for TRAFFIC/ENGAGEMENT
+  const creativePayload: Record<string, string | number | boolean> = {
+    name: nameBase,
+    instagram_user_id: cfg.igUserId,
+    source_instagram_media_id: mediaId,
+  }
+  if (needsUrl) {
+    creativePayload.call_to_action = JSON.stringify({
+      type: input.cta ?? 'LEARN_MORE',
+      value: { link: input.destinationUrl!.trim() },
+    })
+  }
+
   const creative = await postToMeta<{ id: string }>(
     `/${cfg.adAccountId}/adcreatives`,
-    {
-      name: nameBase,
-      instagram_user_id: cfg.igUserId,
-      source_instagram_media_id: mediaId,
-    },
+    creativePayload,
     cfg.token
   )
 

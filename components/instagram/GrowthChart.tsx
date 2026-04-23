@@ -72,6 +72,21 @@ export default function GrowthChart({ data, isLoading }: GrowthChartProps) {
     seguidores: s.followers_count ?? 0,
   }))
 
+  // Zoom Y-axis to the actual follower range so small variations are visible.
+  // Rounds bounds to a nice multiple of 100 with ~20% headroom above/below the series.
+  const series = chartData.map((d) => d.seguidores).filter((v) => v > 0)
+  const yDomain: [number, number] | undefined = (() => {
+    if (series.length === 0) return undefined
+    const min = Math.min(...series)
+    const max = Math.max(...series)
+    const range = Math.max(max - min, 1)
+    const pad = Math.max(Math.ceil(range * 0.2), 50)
+    return [
+      Math.max(0, Math.floor((min - pad) / 100) * 100),
+      Math.ceil((max + pad) / 100) * 100,
+    ]
+  })()
+
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -117,6 +132,8 @@ export default function GrowthChart({ data, isLoading }: GrowthChartProps) {
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => formatNumber(v)}
+                domain={yDomain ?? [0, 'auto']}
+                allowDecimals={false}
               />
               <Tooltip
                 contentStyle={{

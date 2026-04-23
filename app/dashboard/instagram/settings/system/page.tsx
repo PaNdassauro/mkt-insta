@@ -55,6 +55,17 @@ interface ReportInfo {
   emailTo: string | null
 }
 
+interface InstagramAccountInfo {
+  igUserId: string | null
+  adAccountId: string | null
+  pageId: string | null
+  username: string | null
+  name: string | null
+  profilePictureUrl: string | null
+  followersCount: number | null
+  mediaCount: number | null
+}
+
 interface SystemHealthData {
   token: {
     status: string
@@ -63,9 +74,11 @@ interface SystemHealthData {
     warning?: boolean
     warningThresholdDays?: number
   }
+  instagramAccount?: InstagramAccountInfo
   lastSyncs: SyncInfo[]
   cronJobs: CronJob[]
   telegram: { configured: boolean }
+  webhook?: { configured: boolean }
   dbStats: {
     posts: number
     reels: number
@@ -76,6 +89,15 @@ interface SystemHealthData {
   storageInfo: { storyMediaFiles: number }
   performance: PerformanceData
   report: ReportInfo
+}
+
+function IdRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="rounded-md bg-muted/40 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs font-mono break-all">{value ?? 'não configurado'}</div>
+    </div>
+  )
 }
 
 function StatusDot({ color }: { color: 'green' | 'yellow' | 'red' }) {
@@ -114,6 +136,7 @@ export default function SystemHealthPage() {
   const [syncing, setSyncing] = useState(false)
   const [refreshingToken, setRefreshingToken] = useState(false)
   const [testingTelegram, setTestingTelegram] = useState(false)
+  const [testingWebhook, setTestingWebhook] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [backfilling, setBackfilling] = useState(false)
 
@@ -227,6 +250,23 @@ export default function SystemHealthPage() {
     }
   }
 
+  async function handleTestWebhook() {
+    setTestingWebhook(true)
+    try {
+      const res = await fetchWithAccount('/api/settings/webhook-test', { method: 'POST' })
+      const body = await res.json()
+      if (res.ok) {
+        toast.success('Webhook de teste enviado')
+      } else {
+        toast.error(body.error ?? 'Erro ao enviar webhook de teste')
+      }
+    } catch {
+      toast.error('Erro ao enviar webhook de teste')
+    } finally {
+      setTestingWebhook(false)
+    }
+  }
+
   async function handleExport() {
     setExporting(true)
     try {
@@ -328,6 +368,57 @@ export default function SystemHealthPage() {
         </div>
       )}
 
+      {/* Section 0: Conta Instagram */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Conta Instagram</h2>
+          <div className="flex items-start gap-4">
+            {data?.instagramAccount?.profilePictureUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={data.instagramAccount.profilePictureUrl}
+                alt={data.instagramAccount.username ?? 'Perfil'}
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-2xl">📷</div>
+            )}
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-semibold text-lg">
+                  {data?.instagramAccount?.username ? `@${data.instagramAccount.username}` : '—'}
+                </span>
+                {data?.instagramAccount?.name && (
+                  <span className="text-sm text-muted-foreground">{data.instagramAccount.name}</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span>
+                  <strong className="tabular-nums">
+                    {data?.instagramAccount?.followersCount?.toLocaleString('pt-BR') ?? '—'}
+                  </strong>
+                  <span className="text-muted-foreground ml-1">seguidores</span>
+                </span>
+                <span>
+                  <strong className="tabular-nums">
+                    {data?.instagramAccount?.mediaCount?.toLocaleString('pt-BR') ?? '—'}
+                  </strong>
+                  <span className="text-muted-foreground ml-1">publicações</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <IdRow label="IG User ID" value={data?.instagramAccount?.igUserId ?? null} />
+            <IdRow label="Ad Account ID" value={data?.instagramAccount?.adAccountId ?? null} />
+            <IdRow label="Facebook Page ID" value={data?.instagramAccount?.pageId ?? null} />
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Esses valores vêm das variáveis <code className="rounded bg-muted px-1 py-0.5">META_IG_USER_ID</code>, <code className="rounded bg-muted px-1 py-0.5">META_AD_ACCOUNT_ID</code> e <code className="rounded bg-muted px-1 py-0.5">META_PAGE_ID</code> no <code className="rounded bg-muted px-1 py-0.5">.env</code>.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Section 1: Status Geral */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
@@ -397,7 +488,23 @@ export default function SystemHealthPage() {
                     : 'bg-red-50 text-red-600 border-0 dark:bg-red-950 dark:text-red-400'
                 }
               >
-                {data?.telegram.configured ? 'Configurado' : 'Nao configurado'}
+                {data?.telegram.configured ? 'Configurado' : 'Não configurado'}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <StatusDot color={data?.webhook?.configured ? 'green' : 'red'} />
+                <span className="text-sm">Webhook (Slack/Teams)</span>
+              </div>
+              <Badge
+                className={
+                  data?.webhook?.configured
+                    ? 'bg-green-50 text-green-600 border-0 dark:bg-green-950 dark:text-green-400'
+                    : 'bg-red-50 text-red-600 border-0 dark:bg-red-950 dark:text-red-400'
+                }
+              >
+                {data?.webhook?.configured ? 'Configurado' : 'Não configurado'}
               </Badge>
             </div>
           </div>
@@ -659,11 +766,47 @@ export default function SystemHealthPage() {
             <Button
               size="sm"
               variant="outline"
+              onClick={handleTestWebhook}
+              disabled={testingWebhook || !data?.webhook?.configured}
+            >
+              {testingWebhook ? 'Enviando...' : 'Teste Webhook'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={handleExport}
               disabled={exporting}
             >
               {exporting ? 'Exportando...' : 'Exportar Dados'}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 8: Sobre */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Sobre</h2>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Versão</span>
+              <span className="text-sm font-mono">0.1.0</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Projeto</span>
+              <span className="text-sm">DashIG — Welcome Weddings</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Repositório</span>
+              <a
+                href="https://github.com/welcome-trips/mkt-insta"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline"
+              >
+                github.com/welcome-trips/mkt-insta
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>

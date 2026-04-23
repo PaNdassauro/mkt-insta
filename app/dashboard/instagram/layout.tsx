@@ -22,10 +22,8 @@ import {
   MessageSquare,
   AtSign,
   Settings,
-  Smartphone,
   Lock,
   Activity,
-  Monitor,
   LogOut,
   ChevronDown,
   ChevronsLeft,
@@ -89,11 +87,9 @@ const navGroups: NavGroup[] = [
   {
     label: 'Administração',
     items: [
-      { label: 'Configurações', href: '/dashboard/instagram/settings', icon: Settings },
-      { label: 'Contas', href: '/dashboard/instagram/settings/accounts', icon: Smartphone },
+      { label: 'Configurações', href: '/dashboard/instagram/settings/system', icon: Settings },
       { label: 'Usuários', href: '/dashboard/instagram/settings/users', icon: Lock },
       { label: 'Atividades', href: '/dashboard/instagram/settings/activity', icon: Activity },
-      { label: 'Sistema', href: '/dashboard/instagram/settings/system', icon: Monitor },
     ],
   },
 ]
@@ -115,7 +111,7 @@ const mobileNavItems: NavItem[] = [
   { label: 'Mensagens', href: '/dashboard/instagram/messages', icon: MessageSquare },
   { label: 'Menções', href: '/dashboard/instagram/mentions', icon: AtSign },
   { label: 'Relatório', href: '/dashboard/instagram/report', icon: FileText },
-  { label: 'Config', href: '/dashboard/instagram/settings', icon: Settings },
+  { label: 'Config', href: '/dashboard/instagram/settings/system', icon: Settings },
 ]
 
 export default function InstagramLayout({
@@ -202,19 +198,27 @@ export default function InstagramLayout({
         )}
       >
         {/* Logo / Brand */}
-        <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-serif text-sm font-semibold">
-            DI
-          </div>
+        <div className="flex h-20 items-center gap-3 border-b border-border px-4">
+          <Link
+            href="/dashboard/instagram"
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/instagram-logo.png"
+              alt="Instagram"
+              className="h-full w-full object-cover"
+            />
+          </Link>
           {!sidebarCollapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <Link href="/dashboard/instagram" className="block font-serif text-base font-semibold tracking-tight">
-                  DashIG
-                </Link>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground leading-none mt-0.5">
-                  Welcome Weddings
-                </p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/welcomeweddings-logo.png"
+                  alt="Welcome Weddings"
+                  className="max-h-16 w-auto object-contain"
+                />
               </div>
               <ThemeToggle />
             </>
@@ -422,10 +426,16 @@ export default function InstagramLayout({
       {/* Mobile header + horizontal nav */}
       <div className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-card/95 backdrop-blur-sm md:hidden">
         <div className="flex h-14 items-center gap-2 px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-serif text-xs font-semibold">
-            DI
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/instagram-logo.png"
+              alt="Instagram"
+              className="h-full w-full object-cover"
+            />
           </div>
-          <span className="font-serif text-base font-semibold">DashIG</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/welcomeweddings-logo.png" alt="Welcome Weddings" className="h-10 w-auto object-contain" />
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
             <button

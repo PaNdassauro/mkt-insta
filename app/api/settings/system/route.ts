@@ -4,6 +4,7 @@ import { validateDashboardRequest } from '@/lib/auth'
 import { checkTokenExpiration, getAccessToken } from '@/lib/meta-client'
 import { debugToken } from '@/lib/meta-ads-client'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { META_API_BASE_URL } from '@/lib/constants'
 
 const TOKEN_WARNING_DAYS = 60
 
@@ -62,6 +63,63 @@ export async function GET(request: Request) {
       }
     }
 
+    // --- Instagram account info (live from Meta) ---
+    const igUserId = process.env.META_IG_USER_ID ?? null
+    const adAccountId = process.env.META_AD_ACCOUNT_ID ?? null
+    const pageId = process.env.META_PAGE_ID ?? null
+
+    let instagramAccount: {
+      igUserId: string | null
+      adAccountId: string | null
+      pageId: string | null
+      username: string | null
+      name: string | null
+      profilePictureUrl: string | null
+      followersCount: number | null
+      mediaCount: number | null
+    } = {
+      igUserId,
+      adAccountId,
+      pageId,
+      username: null,
+      name: null,
+      profilePictureUrl: null,
+      followersCount: null,
+      mediaCount: null,
+    }
+
+    if (igUserId) {
+      try {
+        const token = await getAccessToken()
+        const fields = 'username,name,profile_picture_url,followers_count,media_count'
+        const url = `${META_API_BASE_URL}/${igUserId}?fields=${fields}&access_token=${encodeURIComponent(token)}`
+        const res = await fetch(url)
+        if (res.ok) {
+          const data = (await res.json()) as {
+            username?: string
+            name?: string
+            profile_picture_url?: string
+            followers_count?: number
+            media_count?: number
+          }
+          instagramAccount = {
+            igUserId,
+            adAccountId,
+            pageId,
+            username: data.username ?? null,
+            name: data.name ?? null,
+            profilePictureUrl: data.profile_picture_url ?? null,
+            followersCount: data.followers_count ?? null,
+            mediaCount: data.media_count ?? null,
+          }
+        } else {
+          logger.warn('Failed to fetch IG account profile', 'SystemHealth', { status: res.status })
+        }
+      } catch (err) {
+        logger.warn('IG account fetch threw', 'SystemHealth', { error: err as Error })
+      }
+    }
+
     // --- Last sync timestamps ---
     const [snapshotSync, storiesSync, audienceSync] = await Promise.all([
       supabase
@@ -112,10 +170,11 @@ export async function GET(request: Request) {
       { nome: 'dashig-auto-publish', schedule: '*/30 * * * *', descricao: 'A cada 30 minutos', frequencia: 'Contínuo' },
     ]
 
-    // --- Telegram config ---
+    // --- Telegram + webhook config ---
     const telegramConfigured = Boolean(
       process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID
     )
+    const webhookConfigured = Boolean(process.env.WEBHOOK_URL)
 
     // --- Database stats ---
     const [postsCount, reelsCount, storiesCount, campaignsCount, commentsCount] = await Promise.all([
@@ -216,9 +275,11 @@ export async function GET(request: Request) {
 
     return apiSuccess({
       token: tokenInfo,
+      instagramAccount,
       lastSyncs,
       cronJobs,
       telegram: { configured: telegramConfigured },
+      webhook: { configured: webhookConfigured },
       dbStats,
       storageInfo,
       performance,
