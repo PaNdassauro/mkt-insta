@@ -1,8 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import BoostPostModal from '@/components/instagram/BoostPostModal'
 import { formatNumber, formatPercent } from '@/lib/analytics'
 import { CONTENT_SCORE_COLORS, CONTENT_SCORE_LABELS } from '@/lib/constants'
 import type { InstagramReel } from '@/types/instagram'
@@ -12,6 +15,7 @@ interface ReelCardProps {
 }
 
 export default function ReelCard({ reel }: ReelCardProps) {
+  const [boostOpen, setBoostOpen] = useState(false)
   // Prefer Supabase Storage URL (persistent) over Instagram CDN URL (expires ~24h)
   const thumbnailUrl = reel.stored_thumbnail_url ?? reel.thumbnail_url
   const scoreColors = reel.content_score ? CONTENT_SCORE_COLORS[reel.content_score] : null
@@ -115,7 +119,18 @@ export default function ReelCard({ reel }: ReelCardProps) {
             })}
           </div>
         )}
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={() => setBoostOpen(true)}
+        >
+          Impulsionar
+        </Button>
       </div>
+
+      <BoostPostModal postId={reel.id} open={boostOpen} onOpenChange={setBoostOpen} />
     </Card>
   )
 }

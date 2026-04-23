@@ -108,12 +108,14 @@ export const POST = withErrorHandler(async (request: Request) => {
 
       await Promise.all(
         batch.map(async (item) => {
-          if (!item.thumbnail_url) {
+          // VIDEO/REELS → thumbnail_url (still frame). IMAGE/CAROUSEL → media_url (the image itself).
+          const sourceUrl = item.thumbnail_url ?? item.media_url
+          if (!sourceUrl) {
             report.skipped_no_thumbnail++
             return
           }
 
-          const storedUrl = await persistPostMedia(item.thumbnail_url, item.id)
+          const storedUrl = await persistPostMedia(sourceUrl, item.id)
           if (!storedUrl) {
             report.upload_failures++
             return
@@ -125,7 +127,7 @@ export const POST = withErrorHandler(async (request: Request) => {
           const { error, count } = await supabase
             .from(table)
             .update({
-              thumbnail_url: item.thumbnail_url,
+              thumbnail_url: sourceUrl,
               stored_thumbnail_url: storedUrl,
             }, { count: 'exact' })
             .eq('media_id', item.id)

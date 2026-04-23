@@ -177,6 +177,7 @@ export interface MediaItem {
   caption?: string
   permalink?: string
   thumbnail_url?: string
+  media_url?: string
   timestamp: string
 }
 

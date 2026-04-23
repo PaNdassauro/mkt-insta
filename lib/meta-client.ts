@@ -87,9 +87,11 @@ export async function getAccountCredentials(
     throw new Error(`Instagram account is deactivated: ${accountId}`)
   }
 
+  // META_ACCESS_TOKEN env var is source of truth; DB token only if env not set
+  const envToken = process.env.META_ACCESS_TOKEN
   return {
     igUserId: account.ig_user_id,
-    accessToken: account.access_token,
+    accessToken: envToken ?? account.access_token,
   }
 }
 
@@ -104,6 +106,10 @@ export async function getAccessToken(accountId?: string): Promise<string> {
     return accessToken
   }
 
+  // Prioridade: env var > app_config (fallback)
+  const envToken = process.env.META_ACCESS_TOKEN
+  if (envToken) return envToken
+
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('app_config')
@@ -112,10 +118,7 @@ export async function getAccessToken(accountId?: string): Promise<string> {
     .single()
 
   if (error || !data) {
-    // Fallback para variavel de ambiente (setup inicial)
-    const envToken = process.env.META_ACCESS_TOKEN
-    if (envToken) return envToken
-    throw new Error('Access token not found in app_config or environment')
+    throw new Error('Access token not found in environment or app_config')
   }
 
   return data.value
@@ -228,7 +231,7 @@ export async function getMediaList(
   const items: MediaItem[] = []
   const perPage = Math.min(maxItems ?? 50, 50)
   let nextUrl: string | null = buildUrl(`/${userId}/media`, {
-    fields: 'id,media_type,media_product_type,caption,permalink,thumbnail_url,timestamp',
+    fields: 'id,media_type,media_product_type,caption,permalink,thumbnail_url,media_url,timestamp',
     limit: String(perPage),
     access_token: token,
   })

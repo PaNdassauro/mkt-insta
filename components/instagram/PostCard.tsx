@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import BoostPostModal from '@/components/instagram/BoostPostModal'
 import { formatNumber, formatPercent } from '@/lib/analytics'
 import { CONTENT_SCORE_COLORS, CONTENT_SCORE_LABELS } from '@/lib/constants'
 import { CATEGORY_LABELS, type ContentCategory } from '@/lib/content-classifier'
@@ -21,6 +23,7 @@ const MEDIA_TYPE_LABELS: Record<string, string> = {
 
 export default function PostCard({ post }: PostCardProps) {
   const [imgError, setImgError] = useState(false)
+  const [boostOpen, setBoostOpen] = useState(false)
   // Prefer Supabase Storage URL (persistent) over Instagram CDN URL (expires ~24h)
   const thumbnailUrl = post.stored_thumbnail_url ?? post.thumbnail_url
   const scoreColors = post.content_score
@@ -121,7 +124,19 @@ export default function PostCard({ post }: PostCardProps) {
             })}
           </div>
         )}
+
+        {/* Boost */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={() => setBoostOpen(true)}
+        >
+          Impulsionar
+        </Button>
       </div>
+
+      <BoostPostModal postId={post.id} open={boostOpen} onOpenChange={setBoostOpen} />
     </Card>
   )
 }
