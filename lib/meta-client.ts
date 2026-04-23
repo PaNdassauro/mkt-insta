@@ -377,6 +377,27 @@ export async function getActiveStories(
   return response.data ?? []
 }
 
+const EMPTY_STORY_INSIGHTS: StoryInsights = {
+  reach: 0,
+  replies: 0,
+  navigation: 0,
+  follows: 0,
+  profile_visits: 0,
+  shares: 0,
+  total_interactions: 0,
+}
+
+/**
+ * Meta code 10 = "Not enough viewers for the media to show insights".
+ * Esperado para stories com < ~5 views ou publicados ha pouco tempo. Tratamos
+ * como skipped (nao como erro) para nao poluir o log.
+ */
+function isInsufficientViewersError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const msg = err.message
+  return /\(#10\)/.test(msg) || /Not enough viewers/i.test(msg)
+}
+
 export async function getStoryInsights(
   token: string,
   mediaId: string
@@ -387,8 +408,14 @@ export async function getStoryInsights(
     access_token: token,
   })
 
-  const response = (await fetchWithRetry(url)) as {
-    data: Array<{ name: string; values: Array<{ value: number }> }>
+  let response: { data: Array<{ name: string; values: Array<{ value: number }> }> }
+  try {
+    response = (await fetchWithRetry(url)) as typeof response
+  } catch (err) {
+    if (isInsufficientViewersError(err)) {
+      return { ...EMPTY_STORY_INSIGHTS, skipped: true }
+    }
+    throw err
   }
 
   const metricsMap: Record<string, number> = {}

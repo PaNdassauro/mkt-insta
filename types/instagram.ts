@@ -209,6 +209,11 @@ export interface StoryInsights {
   profile_visits: number
   shares: number
   total_interactions: number
+  /**
+   * True quando a Meta retorna "(#10) Not enough viewers" — esperado em stories
+   * recentes ou com pouca audiencia. Chamadores devem pular o upsert de metricas.
+   */
+  skipped?: boolean
 }
 
 export interface AudienceInsights {

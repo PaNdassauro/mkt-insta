@@ -49,13 +49,13 @@ export function getErrorMessage(err: unknown): string {
  *     return apiSuccess({ data: results })
  *   })
  */
-export function withErrorHandler(
-  handler: (request: Request) => Promise<NextResponse>,
+export function withErrorHandler<Ctx = unknown>(
+  handler: (request: Request, ctx: Ctx) => Promise<NextResponse>,
   label?: string
 ) {
-  return async (request: Request): Promise<NextResponse> => {
+  return async (request: Request, ctx?: Ctx): Promise<NextResponse> => {
     try {
-      return await handler(request)
+      return await handler(request, ctx as Ctx)
     } catch (err) {
       logger.error('Unhandled error', label ?? 'API', { error: err as Error })
       return apiError(getErrorMessage(err))

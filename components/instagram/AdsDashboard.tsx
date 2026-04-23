@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import { Pause, Play, Trash2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,6 +20,8 @@ import { usePeriodFilter } from '@/hooks/usePeriodFilter'
 import { formatNumber, formatPercent } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 import type { AdRow } from '@/lib/meta-ads-client'
+
+type AdStatusUpdate = 'ACTIVE' | 'PAUSED' | 'DELETED'
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'PAUSED' | 'OTHER'
 type SortKey = 'name' | 'status' | 'campaign' | 'dailyBudget' | 'spend' | 'reach' | 'impressions' | 'ctr' | 'cpm'
@@ -139,6 +143,67 @@ export default function AdsDashboard() {
   const [nameQuery, setNameQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
+
+  const applyAdUpdate = useCallback((adId: string, patch: Partial<AdRow>) => {
+    setAds((prev) =>
+      prev ? prev.map((ad) => (ad.id === adId ? { ...ad, ...patch } : ad)) : prev
+    )
+  }, [])
+
+  const removeAd = useCallback((adId: string) => {
+    setAds((prev) => (prev ? prev.filter((ad) => ad.id !== adId) : prev))
+  }, [])
+
+  const mutateAdStatus = useCallback(
+    async (ad: AdRow, nextStatus: AdStatusUpdate) => {
+      if (nextStatus === 'DELETED') {
+        const ok = window.confirm(
+          `Excluir o anuncio "${ad.name}"? Ele sera arquivado no Ads Manager.`
+        )
+        if (!ok) return
+      }
+
+      setMutatingIds((s) => new Set(s).add(ad.id))
+      const prevStatus = ad.effectiveStatus
+      if (nextStatus !== 'DELETED') {
+        applyAdUpdate(ad.id, { effectiveStatus: nextStatus, status: nextStatus })
+      }
+
+      try {
+        const res = await fetch(`/api/instagram/ads/${ad.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: nextStatus }),
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error ?? 'Falha ao atualizar anuncio')
+
+        if (nextStatus === 'DELETED') {
+          removeAd(ad.id)
+          toast.success('Anuncio excluido')
+        } else {
+          applyAdUpdate(ad.id, {
+            effectiveStatus: json.effective_status ?? nextStatus,
+            status: json.status ?? nextStatus,
+          })
+          toast.success(nextStatus === 'ACTIVE' ? 'Anuncio ativado' : 'Anuncio pausado')
+        }
+      } catch (err) {
+        if (nextStatus !== 'DELETED') {
+          applyAdUpdate(ad.id, { effectiveStatus: prevStatus, status: prevStatus })
+        }
+        toast.error(err instanceof Error ? err.message : 'Erro inesperado')
+      } finally {
+        setMutatingIds((s) => {
+          const next = new Set(s)
+          next.delete(ad.id)
+          return next
+        })
+      }
+    },
+    [applyAdUpdate, removeAd]
+  )
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -303,6 +368,7 @@ export default function AdsDashboard() {
                 <SortHeader label="Impr." sortKey="impressions" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="CTR" sortKey="ctr" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="CPM" sortKey="cpm" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <TableHead className="text-right">Acoes</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -311,7 +377,7 @@ export default function AdsDashboard() {
                 <>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={11}>
+                      <TableCell colSpan={12}>
                         <Skeleton className="h-10 w-full" />
                       </TableCell>
                     </TableRow>
@@ -320,13 +386,18 @@ export default function AdsDashboard() {
               )}
               {ads !== null && filteredAds.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="py-12 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={12} className="py-12 text-center text-sm text-muted-foreground">
                     Nenhum anuncio encontrado no periodo selecionado.
                   </TableCell>
                 </TableRow>
               )}
               {filteredAds.map((ad) => (
-                <AdTableRow key={ad.id} ad={ad} />
+                <AdTableRow
+                  key={ad.id}
+                  ad={ad}
+                  mutating={mutatingIds.has(ad.id)}
+                  onMutate={mutateAdStatus}
+                />
               ))}
             </TableBody>
           </Table>
@@ -336,11 +407,26 @@ export default function AdsDashboard() {
   )
 }
 
-function AdTableRow({ ad }: { ad: AdRow }) {
+function AdTableRow({
+  ad,
+  mutating,
+  onMutate,
+}: {
+  ad: AdRow
+  mutating: boolean
+  onMutate: (ad: AdRow, next: AdStatusUpdate) => void | Promise<void>
+}) {
   const thumb = ad.creative?.thumbnailUrl
   // adAccountId isn't in AdRow; the deep link works with act_ stripped, and Meta accepts
   // the ad_id-only format too: clicking "Abrir" will still land on the ad.
   const manageUrl = `https://www.facebook.com/adsmanager/manage/ads?selected_ad_ids=${ad.id}`
+  const isActive = ad.effectiveStatus === 'ACTIVE'
+  // PAUSED (directo) pode ser reativado. CAMPAIGN_PAUSED/ADSET_PAUSED nao — o
+  // bloqueio esta num nivel acima, reativar o ad sozinho nao surte efeito.
+  const canActivate = ad.effectiveStatus === 'PAUSED'
+  const canPause = isActive
+  // Disapproved/deleted/archived nao devem aceitar mutate.
+  const canDelete = !['DELETED', 'ARCHIVED'].includes(ad.effectiveStatus)
 
   return (
     <TableRow className="hover:bg-muted/20">
@@ -390,6 +476,44 @@ function AdTableRow({ ad }: { ad: AdRow }) {
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {ad.insights.cpm > 0 ? formatBRL(ad.insights.cpm) : '—'}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-1">
+          {mutating && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          {canPause && (
+            <button
+              type="button"
+              onClick={() => onMutate(ad, 'PAUSED')}
+              disabled={mutating}
+              title="Pausar anuncio"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+            >
+              <Pause className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {canActivate && (
+            <button
+              type="button"
+              onClick={() => onMutate(ad, 'ACTIVE')}
+              disabled={mutating}
+              title="Ativar anuncio"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+            >
+              <Play className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => onMutate(ad, 'DELETED')}
+              disabled={mutating}
+              title="Excluir anuncio"
+              className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </TableCell>
       <TableCell className="text-right">
         <a

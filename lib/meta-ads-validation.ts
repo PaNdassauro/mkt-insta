@@ -134,7 +134,31 @@ export function validateBoostConfig(body: BoostConfigBody): string | null {
         if (typeof i.name !== 'string' || !i.name) return 'interest sem name'
       }
     }
+    const audienceIdError = validateCustomAudienceIds(
+      audience.customAudienceIds,
+      'customAudienceIds'
+    )
+    if (audienceIdError) return audienceIdError
+    const excludedAudienceIdError = validateCustomAudienceIds(
+      audience.excludedCustomAudienceIds,
+      'excludedCustomAudienceIds'
+    )
+    if (excludedAudienceIdError) return excludedAudienceIdError
   }
 
+  return null
+}
+
+function validateCustomAudienceIds(
+  ids: unknown,
+  field: string
+): string | null {
+  if (ids === undefined) return null
+  if (!Array.isArray(ids)) return `${field} deve ser array`
+  for (const id of ids) {
+    if (typeof id !== 'string' || !/^\d+$/.test(id)) {
+      return `${field}: id invalido (${id})`
+    }
+  }
   return null
 }

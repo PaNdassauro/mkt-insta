@@ -54,7 +54,10 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const useMultiAccount = accounts.length > 0 && accounts[0].id !== ''
 
+  const RECENT_STORY_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2h
+
   let totalSynced = 0
+  let totalSkipped = 0
   let totalThumbs = 0
   let totalVideos = 0
   let totalActive = 0
@@ -69,7 +72,14 @@ export const POST = withErrorHandler(async (request: Request) => {
     totalActive += stories.length
 
     for (const story of stories) {
-      const insights = await getStoryInsights(token, story.id)
+      const ageMs = Date.now() - new Date(story.timestamp).getTime()
+      const tooRecent = ageMs < RECENT_STORY_THRESHOLD_MS
+
+      // Stories recentes (< 2h) ainda nao tem metricas consolidadas na Meta —
+      // pular a chamada de insights evita o erro (#10) e economiza um request.
+      const insights = tooRecent
+        ? { ...{ reach: 0, replies: 0, navigation: 0, follows: 0, profile_visits: 0, shares: 0, total_interactions: 0 }, skipped: true as const }
+        : await getStoryInsights(token, story.id)
 
       const expiresAt = new Date(
         new Date(story.timestamp).getTime() + 24 * 60 * 60 * 1000
@@ -110,17 +120,23 @@ export const POST = withErrorHandler(async (request: Request) => {
         permalink: story.permalink ?? null,
         timestamp: story.timestamp,
         expires_at: expiresAt,
-        reach: insights.reach,
-        replies: insights.replies,
-        navigation: insights.navigation,
-        follows: insights.follows,
-        profile_visits: insights.profile_visits,
-        shares: insights.shares,
-        total_interactions: insights.total_interactions,
         synced_at: new Date().toISOString(),
       }
       if (useMultiAccount) {
         storyPayload.account_id = account.id
+      }
+
+      // So sobrescreve metricas se o insights NAO foi skipped. Isso preserva
+      // metricas validas de um sync anterior quando este sync caiu no #10 ou
+      // em stories muito recentes.
+      if (!insights.skipped) {
+        storyPayload.reach = insights.reach
+        storyPayload.replies = insights.replies
+        storyPayload.navigation = insights.navigation
+        storyPayload.follows = insights.follows
+        storyPayload.profile_visits = insights.profile_visits
+        storyPayload.shares = insights.shares
+        storyPayload.total_interactions = insights.total_interactions
       }
 
       const { error } = await supabase.from('instagram_stories').upsert(
@@ -130,15 +146,24 @@ export const POST = withErrorHandler(async (request: Request) => {
 
       if (error) {
         logger.error(`Story upsert error (${story.id})${accountLabel}`, 'DashIG Sync Stories', { message: error.message })
+      } else if (insights.skipped) {
+        totalSkipped++
       } else {
         totalSynced++
       }
     }
   }
 
+  logger.info('Sync stories finalizado', 'DashIG Sync Stories', {
+    stories_synced: totalSynced,
+    stories_skipped: totalSkipped,
+    total_active: totalActive,
+  })
+
   return apiSuccess({
     success: true,
     stories_synced: totalSynced,
+    stories_skipped: totalSkipped,
     thumbs_stored: totalThumbs,
     videos_stored: totalVideos,
     total_active: totalActive,

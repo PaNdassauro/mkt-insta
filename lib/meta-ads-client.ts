@@ -58,6 +58,17 @@ export interface BoostAudience {
   placements?: BoostPlacement[] // default all four
   interests?: BoostInterest[] // optional — narrow to people interested in these topics
   excludeFollowers?: boolean // excludes people who follow the FB Page (and usually the linked IG account)
+  customAudienceIds?: string[] // Meta custom audience IDs to include (e.g. site visitors, engagers)
+  excludedCustomAudienceIds?: string[] // custom audiences to exclude
+}
+
+export interface CustomAudienceSummary {
+  id: string
+  name: string
+  subtype: string | null
+  approximateCount: number | null
+  deliveryStatus: string | null
+  operationStatus: string | null
 }
 
 export type BoostBudgetType = 'daily' | 'lifetime'
@@ -293,6 +304,42 @@ const GENDER_CODE: Record<BoostGender, number[] | undefined> = {
   FEMALE: [2],
 }
 
+/**
+ * Pre-flight: verifica se o media pode ser promovido como source_instagram_media_id.
+ * Retorna null se elegivel, string com o motivo se nao. Usa o campo oficial
+ * `is_eligible_for_promotion` exposto pela Graph API em instagram_user -> media.
+ *
+ * Vale para IMAGE, VIDEO, CAROUSEL_ALBUM e REELS — todos os tipos publicados
+ * pelo usuario. Carrosseis nao tem tratamento especial; o Meta renderiza o
+ * anuncio como carrossel automaticamente quando source_instagram_media_id
+ * aponta para um CAROUSEL_ALBUM.
+ */
+async function checkMediaBoostEligibility(
+  mediaId: string,
+  token: string
+): Promise<string | null> {
+  try {
+    const res = await getFromMeta<{
+      is_eligible_for_promotion?: boolean
+      ineligibility_reasons?: string[]
+      media_type?: string
+    }>(
+      `/${mediaId}`,
+      { fields: 'is_eligible_for_promotion,ineligibility_reasons,media_type' },
+      token
+    )
+    if (res.is_eligible_for_promotion === false) {
+      const reasons = res.ineligibility_reasons?.join(', ') ?? 'motivo nao informado'
+      return `Post nao elegivel para impulsionamento (${res.media_type ?? 'desconhecido'}): ${reasons}`
+    }
+    return null
+  } catch {
+    // Se a Graph nao responde o campo de elegibilidade, seguimos em frente —
+    // o erro real (se houver) aparecera na criacao do creative.
+    return null
+  }
+}
+
 export async function boostInstagramPost(input: BoostInput): Promise<BoostResult> {
   const { mediaId, dailyBudgetBRL, durationDays, caption, accountId } = input
   const launchImmediately = input.launchImmediately ?? false
@@ -337,12 +384,20 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
     : ['stream', 'story', 'explore', 'reels']
   const interests = audience.interests?.length ? audience.interests : undefined
   const excludeFollowers = audience.excludeFollowers === true
+  const customAudienceIds = audience.customAudienceIds?.filter((s) => typeof s === 'string' && s.length > 0)
+  const excludedCustomAudienceIds = audience.excludedCustomAudienceIds?.filter((s) => typeof s === 'string' && s.length > 0)
 
   if (ageMin < 13 || ageMax > 65 || ageMin > ageMax) {
     throw new Error('Faixa etaria invalida (13-65, min <= max)')
   }
 
   const cfg = await getAdAccountConfig(accountId)
+
+  // Pre-flight de elegibilidade — falha cedo em vez de criar campanha/adset
+  // e so errar no passo do creative.
+  const ineligibility = await checkMediaBoostEligibility(mediaId, cfg.token)
+  if (ineligibility) throw new Error(ineligibility)
+
   const now = Date.now()
 
   // Start time: default "now + 1 min"; override with input.startDate if >= now
@@ -416,6 +471,12 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
     // Excludes people connected to the FB Page linked to this ad account.
     // Best proxy for "don't show to current followers" that doesn't require a pre-built custom audience.
     targeting.excluded_connections = [{ id: cfg.pageId }]
+  }
+  if (customAudienceIds && customAudienceIds.length > 0) {
+    targeting.custom_audiences = customAudienceIds.map((id) => ({ id }))
+  }
+  if (excludedCustomAudienceIds && excludedCustomAudienceIds.length > 0) {
+    targeting.excluded_custom_audiences = excludedCustomAudienceIds.map((id) => ({ id }))
   }
 
   // Budget: daily vs lifetime (mutually exclusive)
@@ -494,6 +555,53 @@ export async function boostInstagramPost(input: BoostInput): Promise<BoostResult
   }
 }
 
+interface RawCustomAudience {
+  id: string
+  name: string
+  subtype?: string
+  approximate_count?: number
+  approximate_count_lower_bound?: number
+  approximate_count_upper_bound?: number
+  delivery_status?: { code: number; description: string }
+  operation_status?: { code: number; description: string }
+}
+
+export async function listCustomAudiences(
+  accountId?: string
+): Promise<CustomAudienceSummary[]> {
+  const cfg = await getAdAccountConfig(accountId)
+  const fields =
+    'id,name,subtype,approximate_count,approximate_count_lower_bound,delivery_status,operation_status'
+
+  const all: CustomAudienceSummary[] = []
+  let nextUrl: string | null = `${META_API_BASE_URL}/${cfg.adAccountId}/customaudiences?fields=${encodeURIComponent(fields)}&limit=100&access_token=${encodeURIComponent(cfg.token)}`
+
+  while (nextUrl) {
+    const res = await fetch(nextUrl)
+    const raw = await res.text()
+    if (!res.ok) throw new Error(`Meta Ads API ${res.status}: ${raw}`)
+    const body = JSON.parse(raw) as {
+      data?: RawCustomAudience[]
+      paging?: { next?: string }
+    }
+    for (const a of body.data ?? []) {
+      const count =
+        a.approximate_count ?? a.approximate_count_lower_bound ?? null
+      all.push({
+        id: a.id,
+        name: a.name,
+        subtype: a.subtype ?? null,
+        approximateCount: typeof count === 'number' ? count : null,
+        deliveryStatus: a.delivery_status?.description ?? null,
+        operationStatus: a.operation_status?.description ?? null,
+      })
+    }
+    nextUrl = body.paging?.next ?? null
+  }
+
+  return all
+}
+
 export async function getAdStatus(
   adId: string,
   token: string
@@ -503,6 +611,17 @@ export async function getAdStatus(
     { fields: 'id,status,effective_status' },
     token
   )
+}
+
+export type AdStatusUpdate = 'ACTIVE' | 'PAUSED' | 'DELETED'
+
+export async function updateAdStatus(
+  adId: string,
+  status: AdStatusUpdate,
+  token: string
+): Promise<{ id: string; status: string; effective_status: string }> {
+  await postToMeta<{ success: boolean }>(`/${adId}`, { status }, token)
+  return getAdStatus(adId, token)
 }
 
 // ==========================================

@@ -1,7 +1,17 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import TargetingSearch, { type SearchOption } from '@/components/instagram/TargetingSearch'
 import { cn } from '@/lib/utils'
+
+export interface CustomAudienceOption {
+  id: string
+  name: string
+  approximateCount: number | null
+  subtype: string | null
+}
+
+const MIN_CUSTOM_AUDIENCE_COUNT = 100
 
 export type Objective = 'AWARENESS' | 'TRAFFIC' | 'ENGAGEMENT'
 export type Gender = 'ALL' | 'MALE' | 'FEMALE'
@@ -38,6 +48,8 @@ export interface BoostFormState {
   regions: SearchOption[]
   interests: SearchOption[]
   excludeFollowers: boolean
+  customAudienceIds: string[]
+  excludedCustomAudienceIds: string[]
 }
 
 export const DEFAULT_BOOST_STATE: BoostFormState = {
@@ -60,6 +72,8 @@ export const DEFAULT_BOOST_STATE: BoostFormState = {
   regions: [],
   interests: [],
   excludeFollowers: false,
+  customAudienceIds: [],
+  excludedCustomAudienceIds: [],
 }
 
 const OBJECTIVE_OPTIONS: { value: Objective; label: string; desc: string }[] = [
@@ -122,6 +136,34 @@ export default function BoostConfigFields({
 }: BoostConfigFieldsProps) {
   const needsUrl = state.objective !== 'AWARENESS'
   const isLifetime = state.budgetType === 'lifetime'
+
+  const [customAudiences, setCustomAudiences] = useState<CustomAudienceOption[] | null>(null)
+  const [customAudiencesError, setCustomAudiencesError] = useState<string | null>(null)
+
+  // Fetch custom audiences only when the advanced panel is actually opened,
+  // to avoid a needless Meta call on every modal mount.
+  useEffect(() => {
+    if (!showAdvanced || customAudiences !== null) return
+    let cancelled = false
+    fetch('/api/instagram/ads/audiences')
+      .then(async (res) => {
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error ?? 'Falha ao carregar publicos')
+        return json as { data: CustomAudienceOption[] }
+      })
+      .then((body) => {
+        if (!cancelled) setCustomAudiences(body.data ?? [])
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setCustomAudiences([])
+          setCustomAudiencesError(err instanceof Error ? err.message : 'Erro inesperado')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [showAdvanced, customAudiences])
 
   const total =
     isLifetime ? state.totalBudgetBRL : state.dailyBudgetBRL * state.durationDays
@@ -452,6 +494,17 @@ export default function BoostConfigFields({
             </div>
           </div>
 
+          {/* Custom audiences (include + exclude) */}
+          <CustomAudiencesBlock
+            audiences={customAudiences}
+            error={customAudiencesError}
+            selectedIncludeIds={state.customAudienceIds}
+            selectedExcludeIds={state.excludedCustomAudienceIds}
+            onIncludeChange={(ids) => onChange({ customAudienceIds: ids })}
+            onExcludeChange={(ids) => onChange({ excludedCustomAudienceIds: ids })}
+            idPrefix={idPrefix}
+          />
+
           {/* Exclude followers */}
           <label
             htmlFor={`${idPrefix}-exclude`}
@@ -495,6 +548,140 @@ export default function BoostConfigFields({
           </div>
         </div>
       </label>
+    </div>
+  )
+}
+
+function formatAudienceCount(count: number | null): string {
+  if (count === null) return '—'
+  if (count < 1000) return String(count)
+  if (count < 1_000_000) return `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`
+  return `${(count / 1_000_000).toFixed(1)}M`
+}
+
+function CustomAudiencesBlock({
+  audiences,
+  error,
+  selectedIncludeIds,
+  selectedExcludeIds,
+  onIncludeChange,
+  onExcludeChange,
+  idPrefix,
+}: {
+  audiences: CustomAudienceOption[] | null
+  error: string | null
+  selectedIncludeIds: string[]
+  selectedExcludeIds: string[]
+  onIncludeChange: (ids: string[]) => void
+  onExcludeChange: (ids: string[]) => void
+  idPrefix: string
+}) {
+  if (audiences === null) {
+    return (
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium">Públicos personalizados</span>
+        <p className="text-[11px] text-muted-foreground">Carregando...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium">Públicos personalizados</span>
+        <p className="text-[11px] text-red-600">Falha ao carregar: {error}</p>
+      </div>
+    )
+  }
+
+  if (audiences.length === 0) {
+    return (
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium">Públicos personalizados</span>
+        <p className="text-[11px] text-muted-foreground">
+          Nenhum público criado ainda. Crie no Meta Ads Manager (ex: visitantes do site, engajadores do IG) para aparecer aqui.
+        </p>
+      </div>
+    )
+  }
+
+  function toggle(ids: string[], id: string): string[] {
+    return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <span className="text-sm font-medium">Públicos personalizados</span>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Meta exige público com ≥ {MIN_CUSTOM_AUDIENCE_COUNT} pessoas. Os menores aparecem desabilitados.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Incluir</span>
+        <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-1.5">
+          {audiences.map((aud) => {
+            const tooSmall =
+              aud.approximateCount !== null && aud.approximateCount < MIN_CUSTOM_AUDIENCE_COUNT
+            const excluded = selectedExcludeIds.includes(aud.id)
+            const disabled = tooSmall || excluded
+            const checked = selectedIncludeIds.includes(aud.id)
+            return (
+              <label
+                key={aud.id}
+                htmlFor={`${idPrefix}-ca-inc-${aud.id}`}
+                className={cn(
+                  'flex items-center gap-2 rounded px-1.5 py-1 text-xs',
+                  disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-muted/50'
+                )}
+              >
+                <input
+                  id={`${idPrefix}-ca-inc-${aud.id}`}
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => onIncludeChange(toggle(selectedIncludeIds, aud.id))}
+                />
+                <span className="flex-1 truncate">{aud.name}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {formatAudienceCount(aud.approximateCount)}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Excluir</span>
+        <div className="flex max-h-32 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-1.5">
+          {audiences.map((aud) => {
+            const included = selectedIncludeIds.includes(aud.id)
+            const disabled = included
+            const checked = selectedExcludeIds.includes(aud.id)
+            return (
+              <label
+                key={aud.id}
+                htmlFor={`${idPrefix}-ca-exc-${aud.id}`}
+                className={cn(
+                  'flex items-center gap-2 rounded px-1.5 py-1 text-xs',
+                  disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-muted/50'
+                )}
+              >
+                <input
+                  id={`${idPrefix}-ca-exc-${aud.id}`}
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => onExcludeChange(toggle(selectedExcludeIds, aud.id))}
+                />
+                <span className="flex-1 truncate">{aud.name}</span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -578,6 +765,10 @@ export function boostFormToPayload(state: BoostFormState) {
         ? state.interests.map((i) => ({ id: i.id, name: i.name }))
         : undefined,
       excludeFollowers: state.excludeFollowers,
+      customAudienceIds: state.customAudienceIds.length ? state.customAudienceIds : undefined,
+      excludedCustomAudienceIds: state.excludedCustomAudienceIds.length
+        ? state.excludedCustomAudienceIds
+        : undefined,
     },
   }
 }
