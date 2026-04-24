@@ -1,11 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
-import { Pause, Play, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -17,11 +14,14 @@ import {
 } from '@/components/ui/table'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { usePeriodFilter } from '@/hooks/usePeriodFilter'
-import { formatNumber, formatPercent } from '@/lib/analytics'
+import { formatNumber } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
+import AdTableRow, { type AdStatusUpdate } from '@/components/instagram/AdTableRow'
+import AdsGroupedTable from '@/components/instagram/AdsGroupedTable'
 import type { AdRow } from '@/lib/meta-ads-client'
 
-type AdStatusUpdate = 'ACTIVE' | 'PAUSED' | 'DELETED'
+const VIEW_STORAGE_KEY = 'dashig_ads_view'
+type AdsView = 'grouped' | 'flat'
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'PAUSED' | 'OTHER'
 type SortKey = 'name' | 'status' | 'campaign' | 'dailyBudget' | 'spend' | 'reach' | 'impressions' | 'ctr' | 'cpm'
@@ -48,25 +48,8 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'OTHER', label: 'Outros' },
 ]
 
-const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: 'bg-green-50 text-green-700',
-  PAUSED: 'bg-gray-100 text-gray-700',
-  DELETED: 'bg-red-50 text-red-700',
-  ARCHIVED: 'bg-red-50 text-red-700',
-  CAMPAIGN_PAUSED: 'bg-gray-100 text-gray-700',
-  ADSET_PAUSED: 'bg-gray-100 text-gray-700',
-  IN_PROCESS: 'bg-blue-50 text-blue-700',
-  PENDING_REVIEW: 'bg-yellow-50 text-yellow-700',
-  DISAPPROVED: 'bg-red-50 text-red-700',
-  WITH_ISSUES: 'bg-yellow-50 text-yellow-700',
-}
-
 function formatBRL(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function statusClass(status: string): string {
-  return STATUS_STYLES[status] ?? 'bg-muted text-muted-foreground'
 }
 
 function matchesStatus(ad: AdRow, filter: StatusFilter): boolean {
@@ -144,6 +127,21 @@ export default function AdsDashboard() {
   const [sortKey, setSortKey] = useState<SortKey>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
+  // Default 'grouped'. Resolve localStorage override in useEffect (SSR safety).
+  const [view, setView] = useState<AdsView>('grouped')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY)
+    if (stored === 'grouped' || stored === 'flat') setView(stored)
+  }, [])
+
+  const handleViewChange = useCallback((next: AdsView) => {
+    setView(next)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next)
+    }
+  }, [])
 
   const applyAdUpdate = useCallback((adId: string, patch: Partial<AdRow>) => {
     setAds((prev) =>
@@ -307,7 +305,7 @@ export default function AdsDashboard() {
         )}
       </div>
 
-      {/* Status filter chips + name search */}
+      {/* Status filter chips + view toggle + name search */}
       <div className="flex flex-wrap items-center gap-2">
         {STATUS_FILTERS.map((opt) => (
           <button
@@ -324,7 +322,33 @@ export default function AdsDashboard() {
             <span className="ml-1.5 text-[10px] opacity-70">({statusCounts[opt.value]})</span>
           </button>
         ))}
-        <div className="relative ml-auto w-full sm:w-72">
+        <div className="ml-auto inline-flex items-center gap-1 rounded-full border border-border bg-background p-0.5">
+          <button
+            type="button"
+            onClick={() => handleViewChange('grouped')}
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              view === 'grouped'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Agrupado
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('flat')}
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              view === 'flat'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Lista plana
+          </button>
+        </div>
+        <div className="relative w-full sm:w-72">
           <input
             type="text"
             value={nameQuery}
@@ -355,176 +379,80 @@ export default function AdsDashboard() {
       {/* Table */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="w-[60px]"></TableHead>
-                <SortHeader label="Anuncio" sortKey="name" active={sortKey} dir={sortDir} onClick={toggleSort} />
-                <SortHeader label="Status" sortKey="status" active={sortKey} dir={sortDir} onClick={toggleSort} />
-                <SortHeader label="Campanha" sortKey="campaign" active={sortKey} dir={sortDir} onClick={toggleSort} />
-                <SortHeader label="Orc./dia" sortKey="dailyBudget" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="Gasto" sortKey="spend" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="Alcance" sortKey="reach" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="Impr." sortKey="impressions" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="CTR" sortKey="ctr" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="CPM" sortKey="cpm" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <TableHead className="text-right">Acoes</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ads === null && (
-                <>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <TableRow key={i}>
-                      <TableCell colSpan={12}>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </>
-              )}
-              {ads !== null && filteredAds.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={12} className="py-12 text-center text-sm text-muted-foreground">
-                    Nenhum anuncio encontrado no periodo selecionado.
-                  </TableCell>
+          {ads === null ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead>Anuncio</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Campanha</TableHead>
+                  <TableHead className="text-right">Orc./dia</TableHead>
+                  <TableHead className="text-right">Gasto</TableHead>
+                  <TableHead className="text-right">Alcance</TableHead>
+                  <TableHead className="text-right">Impr.</TableHead>
+                  <TableHead className="text-right">CTR</TableHead>
+                  <TableHead className="text-right">CPM</TableHead>
+                  <TableHead className="text-right">Acoes</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              )}
-              {filteredAds.map((ad) => (
-                <AdTableRow
-                  key={ad.id}
-                  ad={ad}
-                  mutating={mutatingIds.has(ad.id)}
-                  onMutate={mutateAdStatus}
-                />
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={12}>
+                      <Skeleton className="h-10 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : view === 'grouped' ? (
+            <AdsGroupedTable
+              ads={filteredAds}
+              mutatingIds={mutatingIds}
+              onMutate={mutateAdStatus}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="w-[60px]"></TableHead>
+                  <SortHeader label="Anuncio" sortKey="name" active={sortKey} dir={sortDir} onClick={toggleSort} />
+                  <SortHeader label="Status" sortKey="status" active={sortKey} dir={sortDir} onClick={toggleSort} />
+                  <SortHeader label="Campanha" sortKey="campaign" active={sortKey} dir={sortDir} onClick={toggleSort} />
+                  <SortHeader label="Orc./dia" sortKey="dailyBudget" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <SortHeader label="Gasto" sortKey="spend" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <SortHeader label="Alcance" sortKey="reach" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <SortHeader label="Impr." sortKey="impressions" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <SortHeader label="CTR" sortKey="ctr" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <SortHeader label="CPM" sortKey="cpm" active={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                  <TableHead className="text-right">Acoes</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAds.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="py-12 text-center text-sm text-muted-foreground">
+                      Nenhum anuncio encontrado no periodo selecionado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredAds.map((ad) => (
+                    <AdTableRow
+                      key={ad.id}
+                      ad={ad}
+                      mutating={mutatingIds.has(ad.id)}
+                      onMutate={mutateAdStatus}
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function AdTableRow({
-  ad,
-  mutating,
-  onMutate,
-}: {
-  ad: AdRow
-  mutating: boolean
-  onMutate: (ad: AdRow, next: AdStatusUpdate) => void | Promise<void>
-}) {
-  const thumb = ad.creative?.thumbnailUrl
-  // adAccountId isn't in AdRow; the deep link works with act_ stripped, and Meta accepts
-  // the ad_id-only format too: clicking "Abrir" will still land on the ad.
-  const manageUrl = `https://www.facebook.com/adsmanager/manage/ads?selected_ad_ids=${ad.id}`
-  const isActive = ad.effectiveStatus === 'ACTIVE'
-  // PAUSED (directo) pode ser reativado. CAMPAIGN_PAUSED/ADSET_PAUSED nao — o
-  // bloqueio esta num nivel acima, reativar o ad sozinho nao surte efeito.
-  const canActivate = ad.effectiveStatus === 'PAUSED'
-  const canPause = isActive
-  // Disapproved/deleted/archived nao devem aceitar mutate.
-  const canDelete = !['DELETED', 'ARCHIVED'].includes(ad.effectiveStatus)
-
-  return (
-    <TableRow className="hover:bg-muted/20">
-      <TableCell>
-        <div className="relative h-10 w-10 overflow-hidden rounded bg-muted">
-          {thumb ? (
-            <Image
-              src={thumb}
-              alt={ad.name}
-              fill
-              sizes="40px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-xs text-muted-foreground/40">
-              📷
-            </div>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="max-w-[240px]">
-        <div className="truncate text-sm font-medium">{ad.name}</div>
-        {ad.campaign?.objective && (
-          <div className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-            {ad.campaign.objective.replace(/^OUTCOME_/, '')}
-          </div>
-        )}
-      </TableCell>
-      <TableCell>
-        <Badge className={cn('border-0 text-[10px] font-medium', statusClass(ad.effectiveStatus))}>
-          {ad.effectiveStatus}
-        </Badge>
-      </TableCell>
-      <TableCell className="max-w-[200px]">
-        <div className="truncate text-sm text-muted-foreground">{ad.campaign?.name ?? '—'}</div>
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {ad.adset?.dailyBudgetBRL !== null && ad.adset?.dailyBudgetBRL !== undefined
-          ? formatBRL(ad.adset.dailyBudgetBRL)
-          : '—'}
-      </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">{formatBRL(ad.insights.spend)}</TableCell>
-      <TableCell className="text-right tabular-nums">{formatNumber(ad.insights.reach)}</TableCell>
-      <TableCell className="text-right tabular-nums">{formatNumber(ad.insights.impressions)}</TableCell>
-      <TableCell className="text-right tabular-nums">
-        {ad.insights.ctr > 0 ? formatPercent(ad.insights.ctr) : '—'}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {ad.insights.cpm > 0 ? formatBRL(ad.insights.cpm) : '—'}
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center justify-end gap-1">
-          {mutating && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          {canPause && (
-            <button
-              type="button"
-              onClick={() => onMutate(ad, 'PAUSED')}
-              disabled={mutating}
-              title="Pausar anuncio"
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-            >
-              <Pause className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {canActivate && (
-            <button
-              type="button"
-              onClick={() => onMutate(ad, 'ACTIVE')}
-              disabled={mutating}
-              title="Ativar anuncio"
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-            >
-              <Play className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              onClick={() => onMutate(ad, 'DELETED')}
-              disabled={mutating}
-              title="Excluir anuncio"
-              className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <a
-          href={manageUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-primary underline-offset-2 hover:underline"
-        >
-          Abrir
-        </a>
-      </TableCell>
-    </TableRow>
   )
 }
