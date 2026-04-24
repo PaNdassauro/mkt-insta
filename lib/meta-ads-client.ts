@@ -110,6 +110,21 @@ export interface AdInsights {
   frequency: number
 }
 
+export interface AdDailyPoint {
+  date: string // YYYY-MM-DD (ad account timezone) — keep as string, don't new Date() it
+  spend: number
+  reach: number
+  impressions: number
+}
+
+export interface AdBreakdownRow {
+  key: string // e.g. "25-34" (age) or "facebook" (publisher_platform)
+  subKey?: string // e.g. "female" when breakdowns=age,gender
+  spend: number
+  reach: number
+  impressions: number
+}
+
 export interface AdRow {
   id: string
   name: string
@@ -759,5 +774,138 @@ export async function listAdsWithInsights(
   }
 
   logger.info('Listed ads', 'Meta Ads', { count: rows.length, adAccountId: cfg.adAccountId })
+  return rows
+}
+
+// ==========================================
+// Drill-down: single ad meta + daily + breakdowns
+// ==========================================
+
+export async function getAdMeta(
+  adId: string,
+  opts: { since?: string; until?: string; accountId?: string } = {}
+): Promise<AdRow> {
+  const cfg = await getAdAccountConfig(opts.accountId)
+
+  const insightsField =
+    opts.since && opts.until
+      ? `insights.time_range({"since":"${opts.since}","until":"${opts.until}"}){spend,reach,impressions,clicks,ctr,cpm,cpc,frequency}`
+      : `insights{spend,reach,impressions,clicks,ctr,cpm,cpc,frequency}`
+
+  const fields = [
+    'id',
+    'name',
+    'status',
+    'effective_status',
+    'created_time',
+    'campaign{id,name,objective,status}',
+    'adset{id,name,status,daily_budget,lifetime_budget,start_time,end_time}',
+    'creative{id,name,thumbnail_url,effective_instagram_media_id}',
+    insightsField,
+  ].join(',')
+
+  const raw = await getFromMeta<RawAdResponse>(`/${adId}`, { fields }, cfg.token)
+  return toRow(raw)
+}
+
+interface RawDailyInsight {
+  spend?: string
+  reach?: string
+  impressions?: string
+  date_start?: string
+  date_stop?: string
+}
+
+export async function getAdDailyInsights(
+  adId: string,
+  since: string,
+  until: string,
+  opts: { accountId?: string } = {}
+): Promise<AdDailyPoint[]> {
+  const cfg = await getAdAccountConfig(opts.accountId)
+
+  const body = await getFromMeta<{ data?: RawDailyInsight[] }>(
+    `/${adId}/insights`,
+    {
+      fields: 'spend,reach,impressions',
+      time_range: JSON.stringify({ since, until }),
+      time_increment: '1',
+    },
+    cfg.token
+  )
+
+  const rows: AdDailyPoint[] = []
+  for (const item of body.data ?? []) {
+    // Meta returns date_start as YYYY-MM-DD for time_increment=1
+    const date = item.date_start ?? ''
+    if (!date) continue
+    rows.push({
+      date,
+      spend: parseNumber(item.spend),
+      reach: parseNumber(item.reach),
+      impressions: parseNumber(item.impressions),
+    })
+  }
+  return rows
+}
+
+interface RawBreakdownInsight {
+  spend?: string
+  reach?: string
+  impressions?: string
+  age?: string
+  gender?: string
+  publisher_platform?: string
+  platform_position?: string
+  [key: string]: string | undefined
+}
+
+export type AdBreakdownDimension =
+  | 'age,gender'
+  | 'publisher_platform'
+  | 'age'
+  | 'gender'
+
+export async function getAdBreakdowns(
+  adId: string,
+  since: string,
+  until: string,
+  breakdowns: AdBreakdownDimension,
+  opts: { accountId?: string } = {}
+): Promise<AdBreakdownRow[]> {
+  const cfg = await getAdAccountConfig(opts.accountId)
+
+  const body = await getFromMeta<{ data?: RawBreakdownInsight[] }>(
+    `/${adId}/insights`,
+    {
+      fields: 'spend,reach,impressions',
+      time_range: JSON.stringify({ since, until }),
+      breakdowns,
+    },
+    cfg.token
+  )
+
+  const rows: AdBreakdownRow[] = []
+  for (const item of body.data ?? []) {
+    let key = ''
+    let subKey: string | undefined
+    if (breakdowns === 'age,gender') {
+      key = item.age ?? 'unknown'
+      subKey = item.gender ?? undefined
+    } else if (breakdowns === 'age') {
+      key = item.age ?? 'unknown'
+    } else if (breakdowns === 'gender') {
+      key = item.gender ?? 'unknown'
+    } else if (breakdowns === 'publisher_platform') {
+      key = item.publisher_platform ?? 'unknown'
+    }
+    rows.push({
+      key,
+      subKey,
+      spend: parseNumber(item.spend),
+      reach: parseNumber(item.reach),
+      impressions: parseNumber(item.impressions),
+    })
+  }
   return rows
 }
